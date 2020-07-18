@@ -4,7 +4,7 @@
 type \
 convertor::operator () ( std::string && key , type && default_value ) \
 { \
-  auto it = map_config.find(std::move(key)); \
+  auto it = map_config.find(key); \
   if ( it != map_config.end() ) { return str_to_type(it->second); }\
   return std::move(default_value); \
 }\
@@ -12,7 +12,7 @@ template <> \
 type \
 convertor::operator () ( std::string && key , const type & default_value ) \
 { \
-  auto it = map_config.find(std::move(key)); \
+  auto it = map_config.find(key); \
   if ( it != map_config.end() ) { return str_to_type(it->second); }\
   return default_value; \
 }
@@ -30,7 +30,7 @@ template <>
 std::string
 convertor::operator () ( std::string && key , std::string && default_value )
 {
-  auto it = map_config.find(std::move(key));
+  auto it = map_config.find(key);
   if ( it != map_config.end() ) { return it->second; }
   return std::move(default_value);
 }
@@ -38,7 +38,7 @@ template <>
 std::string
 convertor::operator () ( std::string && key , const std::string & default_value )
 {
-  auto it = map_config.find(std::move(key));
+  auto it = map_config.find(key);
   if ( it != map_config.end() ) { return it->second; }
   return default_value;
 }
