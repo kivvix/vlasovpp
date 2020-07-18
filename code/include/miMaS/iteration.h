@@ -101,7 +101,7 @@ template < typename _T >
 __time_iteration<_T>
 time ( const iteration<_T> & iter )
 {
-  return __time_iteration(iter.iter,iter.current_time,iter.dt);
+  return __time_iteration<_T>(iter.iter,iter.current_time,iter.dt);
 }
 
 template< typename _T >
@@ -126,7 +126,7 @@ template < typename _T >
 __error_iteration<_T>
 error ( const iteration<_T> & iter )
 {
-  return __error_iteration(iter.success,iter.Lhfh,iter.LE);
+  return __error_iteration<_T>(iter.success,iter.Lhfh,iter.LE);
 }
 
 } // namespace iteration
