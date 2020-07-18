@@ -118,6 +118,7 @@ template < typename CharT , typename Traits = std::char_traits<CharT> , typename
 std::basic_ostream<CharT,Traits> &
 operator << ( std::basic_ostream<CharT,Traits> & os , const __error_iteration<_T> & ei )
 {
+  using namespace std::string_literals;
   os << ((ei.success)?"\033[92m"s:"\033[31m"s) << std::setw(10) << ei.Lhfh << " " << std::setw(10) << ei.LE << "\033[0m";
   return os;
 }
