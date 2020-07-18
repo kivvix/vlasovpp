@@ -1,0 +1,12 @@
+Nx 27
+Nv 27
+Nz 27
+Nvx 32
+Nvy 32
+Nvz 33
+Tc 0.2
+Tf 50
+ui 4.
+alpha 0.1
+tol 1e-04
+output_dir hybrid1dx3dv
