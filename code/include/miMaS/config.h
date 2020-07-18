@@ -43,10 +43,11 @@ struct convertor {
 
   convertor ()
   { ; }
-  template < typename OPENABLE >
-  convertor ( OPENABLE input )
+  //template < typename OPENABLE >
+  //convertor ( OPENABLE input )
+  convertor ( fs::path && input )
   {
-    std::ifstream ifs(input);
+    std::ifstream ifs(std::move(input));
     std::string key,value;
     while ( ifs >> key >> value ) {
       map_config[key] = value;
@@ -98,6 +99,7 @@ struct config {
   double tol;
   fs::path output_dir;
 
+  /*
   template <typename OPENABLE>
   config ( OPENABLE path_config )
     : name("")
@@ -122,6 +124,8 @@ struct config {
     tol = convert("tol",1e-5);
     output_dir = convert("output_dir","."s);
   }
+  */
+  config( fs::path && );
 
   bool
   create_output_directory () const;

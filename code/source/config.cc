@@ -43,6 +43,30 @@ convertor::operator () ( std::string && key , const std::string & default_value 
   return default_value;
 }
 
+config::config( fs::path && path_config )
+  : name("")
+{
+  using namespace std::string_literals;
+
+  convertor convert(path_config);
+
+  Nx = convert("Nx",135);
+  Nv = convert("Nv",256);
+
+  Nz  = convert("Nz" ,27);
+  Nvx = convert("Nvx",16);
+  Nvy = convert("Nvy",16);
+  Nvz = convert("Nvz",27);
+  
+  Tc = convert("Tc",0.01);
+  ui = convert("ui",3.4);
+  alpha = convert("alpha",0.2);
+
+  Tf = convert("Tf",10.0);
+  tol = convert("tol",1e-5);
+  output_dir = convert("output_dir","."s);
+}
+
 bool
 config::create_output_directory () const
 { return fs::create_directories(output_dir); }
