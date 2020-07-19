@@ -1,5 +1,5 @@
-# miMaS compilation
-PROJET = miMaS
+# vlasovpp compilation
+PROJET = vlasovpp
 
 DEBUG_MODE ?= N
 
@@ -9,9 +9,14 @@ SRC_dir    = source
 HEADER_dir = include/$(PROJET)
 OBJ_dir    = obj
 
-INC_BOOST = /usr/local/Cellar/boost/1.72.0_3/include
-INC_FFTW  = /usr/local/Cellar/fftw/3.3.8_2/include/
-LIB_FFTW  = fftw3
+# variables of Makefile.config if it isn't already define
+echo    ?= echo
+CXX     ?= cc
+LIB_dir ?=  $(shell pwd)/lib
+
+INC_BOOST ?= /usr/include/boost
+INC_FFTW  ?= /usr/include
+LIB_FFTW  ?= fftw3
 
 INCLUDES = $(INC_BOOST) $(INC_FFTW) $(HEADER_dir)/..
 LIBS = $(PROJET) $(LIB_FFTW) m
@@ -37,10 +42,7 @@ endif
 
 #linker
 LD = $(CXX) -fPIC -shared
-
 LDFLAGS = $(CFLAGS)
-
-echo = echo
 
 ### BUILD RULES #######################################################
 
@@ -80,6 +82,7 @@ nuke : mrproper
 	rm -f *.out
 
 coffee :
+	@$(echo) "It's coffee time!\n"
 	@$(echo) " (\n  )\nc[]"
 
 ### compilation rules
@@ -88,5 +91,3 @@ coffee :
 	@$(echo) "\033[95m$@\033[0m"
 	$(CXX) $(CFLAGS) $(DEBUGFLAGS) -g $< $(foreach inc,$(INCLUDES),-I $(inc)) -L $(LIB_dir) $(foreach lib,$(LIBS),-l$(lib)) -o $@
 	@$(echo) "\033[1mcompilation done\033[0m"
-
-
