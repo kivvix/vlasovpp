@@ -48,7 +48,7 @@ config::config( fs::path && path_config )
 {
   using namespace std::string_literals;
 
-  convertor convert(path_config);
+  convertor convert(std::move(path_config));
 
   Nx = convert("Nx",135);
   Nv = convert("Nv",256);
