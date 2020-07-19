@@ -1,4 +1,4 @@
-#include "miMaS/config.h"
+#include "vlasovpp/config.h"
 
 #define converter( type , str_to_type ) template <> \
 type \

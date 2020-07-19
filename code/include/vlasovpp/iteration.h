@@ -8,7 +8,7 @@
 
 #include <boost/numeric/ublas/matrix.hpp>
 
-#include "miMaS/complex_field.h"
+#include "vlasovpp/complex_field.h"
 
 namespace iteration {
 using namespace boost::numeric;
