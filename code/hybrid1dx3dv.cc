@@ -8,6 +8,9 @@
 #include <string>
 #include <list>
 #include <vector>
+#include <tuple>
+#include <functional>
+#include <utility>
 
 using namespace std::string_literals;
 
@@ -35,6 +38,7 @@ const std::complex<double> & I = std::complex<double>(0.,1.);
 #define Vkx(k) (k*f.step.dvx+f.range.vx_min)
 #define Vky(k) (k*f.step.dvy+f.range.vy_min)
 #define Vkz(k) (k*f.step.dvz+f.range.vz_min)
+
 
 auto
 maxwellian ( double rho , std::vector<double> u , std::vector<double> T ) {
@@ -73,7 +77,7 @@ main ( int argc , char const * argv[] )
   const double v_perp = 0.6;
   const double nh = 0.2;
 
-  double dt = 0.05;
+  double dt = 0.1;
 
   ublas::vector<double> vx(c.Nv,0.),vy(c.Nv,0.),vz(c.Nv,0.);
   std::generate( vx.begin() , vx.end() , [&,k=0]() mutable {return (k++)*f.step.dvx+f.range.vx_min;} );
@@ -87,18 +91,32 @@ main ( int argc , char const * argv[] )
     for ( int i=-c.Nx/2 ; i<0 ; ++i ) { kx[c.Nx+i] = 2.*math::pi<double>()*i/l; }
   }
 
+  // projection in some plan to see anisotropy in v
+  field<double,1> fvxz(boost::extents[c.Nvy][c.Nvz]);
+  field<double,1> fvyz(boost::extents[c.Nvx][c.Nvz]);
+  fvxz.range.v_min = f.range.vy_min; fvxz.range.v_max = f.range.vy_max;
+  fvxz.range.x_min = f.range.vz_min; fvxz.range.x_max = f.range.vz_max;
+  fvxz.compute_steps();
+
+  fvyz.range.v_min = f.range.vx_min; fvyz.range.v_max = f.range.vx_max;
+  fvyz.range.x_min = f.range.vz_min; fvyz.range.x_max = f.range.vz_max;
+  fvyz.compute_steps();
+
   auto M1 = maxwellian(nh,{0.,0.,0.},{v_par,v_perp,v_perp});
   for (std::size_t k_x=0u ; k_x<f.size(0) ; ++k_x ) {
     for (std::size_t k_y=0u ; k_y<f.size(1) ; ++k_y ) {
       for (std::size_t k_z=0u ; k_z<f.size(2) ; ++k_z ) {
         for (std::size_t i=0u ; i<f.size_x() ; ++i ) {
           f[k_x][k_y][k_z][i] = M1( Zi(i),Vkx(k_x),Vky(k_y),Vkz(k_z) );
+          fvxz[k_y][k_z] += f[k_x][k_y][k_z][i]*f.step.dvx*f.step.dz;
+          fvyz[k_x][k_z] += f[k_x][k_y][k_z][i]*f.step.dvy*f.step.dz;
         }
         fft::fft(f[k_x][k_y][k_z].begin(),f[k_x][k_y][k_z].end(),hf[k_x][k_y][k_z].begin());
       }
     }
   }
-
+  fvxz.write(c.output_dir/"fvxz_init.dat");
+  fvyz.write(c.output_dir/"fvyz_init.dat");
 
   const double B0 = 1.;
   ublas::vector<double> Ex(c.Nz,0.),Ey(c.Nz,0.);
@@ -117,11 +135,27 @@ main ( int argc , char const * argv[] )
   std::vector<double> kinetic_energy;  kinetic_energy.reserve(100);
   std::vector<double> magnetic_energy; magnetic_energy.reserve(100);
   std::vector<double> cold_energy;     cold_energy.reserve(100);
+  std::vector<double> mass;            mass.reserve(100);
 
   hybird1dx3dv<double> Lie( f , f.range.len_z() , B0 );
   double current_t = 0.;
   times.push_back(0.);
 
+  auto __compute_energy = [&]( const ublas::vector<double> & ux , const ublas::vector<double> & uy , double dz ) {
+    return std::inner_product( ux.begin() , ux.end() , uy.begin() , 0.0 ,
+                 std::plus<double>() ,
+                 [&]( const auto & x , const auto & y ){ return 0.5*(x*x + y*y)*dz ; } );
+  };
+  auto compute_electric_energy = [&]( const ublas::vector<double> & Ex , const ublas::vector<double> & Ey ) {
+    return __compute_energy(Ex,Ey,f.step.dz);
+  };
+  auto compute_magnetic_energy = [&]( const ublas::vector<double> & Bx , const ublas::vector<double> & By ) {
+    return __compute_energy(Bx,By,f.step.dz);
+  };
+  auto compute_cold_energy = [&]( const ublas::vector<double> & jx , const ublas::vector<double> & jy ) {
+    return __compute_energy(jx,jy,f.step.dz);
+  };
+/*
   auto compute_electric_energy = [&]( const ublas::vector<double> & Ex , const ublas::vector<double> & Ey ) {
     double electric_energy = 0.;
     for ( auto i=0u ; i<f.size_x() ; ++i ) {
@@ -143,6 +177,7 @@ main ( int argc , char const * argv[] )
     }
     return cold_energy;
   };
+*/
   /*
   auto compute_total_energy = [&](
             const ublas::vector<double> & jx , const ublas::vector<double> & jy ,
@@ -174,8 +209,9 @@ main ( int argc , char const * argv[] )
     return H;
   };
   */
-  auto compute_kinetic_energy = [&](const complex_field<double,3> & hf) {
+  auto compute_mass_kinetic_energy = [&](const complex_field<double,3> & hf) {
     double kinetic_energy = 0.;
+    double mass = 0.;
     ublas::vector<double> fvxvyvz(c.Nz,0.);
     for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
       double vx = k_x*f.step.dvx + f.range.vx_min;
@@ -186,23 +222,25 @@ main ( int argc , char const * argv[] )
           fft::ifft( hf[k_x][k_y][k_z].begin() , hf[k_x][k_y][k_z].end() , fvxvyvz.begin() );
           for ( auto i=0u ; i<c.Nz ; ++i ) {
             kinetic_energy += 0.5*( vx*vx + vy*vy + vz*vz )*fvxvyvz[i]*f.step.dz*f.volumeV();
+            mass += fvxvyvz[i]*f.step.dz*f.volumeV();
           }
         }
       }
     }
-    return kinetic_energy;
+    return std::make_pair(mass,kinetic_energy);
   };
-  double eex=0.,eey=0.;
+  
+  double m, ek;
   //eex = compute_electric_energy(Ex); eey = compute_electric_energy(Ey);
   //electric_energy_x.push_back(std::sqrt(eex));
   //electric_energy_y.push_back(std::sqrt(eey));
   electric_energy.push_back(compute_electric_energy(Ex,Ey));
   magnetic_energy.push_back(compute_magnetic_energy(Bx,By));
   cold_energy.push_back(compute_cold_energy(jcx,jcy));
-  kinetic_energy.push_back(compute_kinetic_energy(hf));
+  std::tie(m,ek) = compute_mass_kinetic_energy(hf);
+  kinetic_energy.push_back(ek);
+  mass.push_back(m);
   //total_energy.push_back( compute_total_energy(jcx,jcy,Ex,Ey,Bx,By,hf) );
-
-  std::cout << "kinetic energy : " << compute_kinetic_energy(hf) << std::endl; 
 
   while ( current_t<c.Tf ) {
     std::cout << "\r" << current_t << " / " << c.Tf << std::flush; 
@@ -216,7 +254,10 @@ main ( int argc , char const * argv[] )
     electric_energy.push_back(compute_electric_energy(Ex,Ey));
     magnetic_energy.push_back(compute_magnetic_energy(Bx,By));
     cold_energy.push_back(compute_cold_energy(jcx,jcy));
-    kinetic_energy.push_back(compute_kinetic_energy(hf));
+    std::tie(m,ek) = compute_mass_kinetic_energy(hf);
+    kinetic_energy.push_back(ek);
+    mass.push_back(m);
+
     current_t += dt;
     times.push_back(current_t);
   }
@@ -226,11 +267,34 @@ main ( int argc , char const * argv[] )
     return ss.str();
   };
 
+
+  auto pfvxz = fvxz.origin() , pfvyz = fvyz.origin();
+  for ( auto i=0u ; i<fvxz.num_elements() ; ++i ) {
+    pfvxz[i] = 0.;
+    pfvyz[i] = 0.;
+  }
+
+  for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
+    for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
+      for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
+        fft::ifft( hf[k_x][k_y][k_z].begin() , hf[k_x][k_y][k_z].end() , f[k_x][k_y][k_z].begin() );
+        for ( auto i=0u ; i<c.Nz ; ++i ) {
+          fvxz[k_y][k_z] += f[k_x][k_y][k_z][i]*f.step.dvx*f.step.dz;
+          fvyz[k_x][k_z] += f[k_x][k_y][k_z][i]*f.step.dvy*f.step.dz;
+        }
+      }
+    }
+  }
+
+  fvxz.write(c.output_dir/"fvxz_end.dat");
+  fvyz.write(c.output_dir/"fvyz_end.dat");
+
   std::string name = "";//_tilde";
   c << monitoring::make_data( "ee"s+name+".dat"s  , electric_energy   , writer_t_y );
   c << monitoring::make_data( "eb"s+name+".dat"s  , magnetic_energy   , writer_t_y );
   c << monitoring::make_data( "ec"s+name+".dat"s  , cold_energy       , writer_t_y );
   c << monitoring::make_data( "ek"s+name+".dat"s  , kinetic_energy    , writer_t_y );
+  c << monitoring::make_data( "m"s+name+".dat"s   , mass              , writer_t_y );
   //c << monitoring::data( "eex"s+name+".dat"s , electric_energy_x , writer_t_y );
   //c << monitoring::data( "eey"s+name+".dat"s , electric_energy_y , writer_t_y );
   //c << monitoring::data( "H"s+name+".dat"s   , total_energy      , writer_t_y );
