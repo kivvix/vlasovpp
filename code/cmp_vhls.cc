@@ -14,16 +14,16 @@
 #include <boost/numeric/ublas/io.hpp>
 #include <boost/math/constants/constants.hpp>
 
-#include "miMaS/field.h"
-#include "miMaS/complex_field.h"
-#include "miMaS/weno.h"
-#include "miMaS/fft.h"
-#include "miMaS/array_view.h"
-#include "miMaS/poisson.h"
-#include "miMaS/splitting.h"
-#include "miMaS/lagrange5.h"
-#include "miMaS/config.h"
-#include "miMaS/signal_handler.h"
+#include "vlasovpp/field.h"
+#include "vlasovpp/complex_field.h"
+#include "vlasovpp/weno.h"
+#include "vlasovpp/fft.h"
+#include "vlasovpp/array_view.h"
+#include "vlasovpp/poisson.h"
+#include "vlasovpp/splitting.h"
+#include "vlasovpp/lagrange5.h"
+#include "vlasovpp/config.h"
+#include "vlasovpp/signal_handler.h"
 
 struct iter_s {
   std::size_t iter;

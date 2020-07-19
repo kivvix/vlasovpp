@@ -10,14 +10,14 @@
 #include <boost/numeric/ublas/io.hpp>
 #include <boost/math/constants/constants.hpp>
 
-#include "miMaS/field.h"
-#include "miMaS/weno.h"
-#include "miMaS/fft.h"
-#include "miMaS/array_view.h"
-#include "miMaS/poisson.h"
-#include "miMaS/rk.h"
-#include "miMaS/config.h"
-#include "miMaS/signal_handler.h"
+#include "vlasovpp/field.h"
+#include "vlasovpp/weno.h"
+#include "vlasovpp/fft.h"
+#include "vlasovpp/array_view.h"
+#include "vlasovpp/poisson.h"
+#include "vlasovpp/rk.h"
+#include "vlasovpp/config.h"
+#include "vlasovpp/signal_handler.h"
 
 namespace o2 {
   template < typename _T , std::size_t NumDimsV >

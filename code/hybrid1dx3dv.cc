@@ -15,17 +15,17 @@ using namespace std::string_literals;
 #include <boost/numeric/ublas/io.hpp>
 #include <boost/math/constants/constants.hpp>
 
-#include "miMaS/field.h"
-#include "miMaS/complex_field.h"
-#include "miMaS/weno.h"
-#include "miMaS/fft.h"
-#include "miMaS/array_view.h"
-#include "miMaS/poisson.h"
-#include "miMaS/rk.h"
-#include "miMaS/config.h"
-#include "miMaS/signal_handler.h"
-#include "miMaS/iteration.h"
-#include "miMaS/splitting.h"
+#include "vlasovpp/field.h"
+#include "vlasovpp/complex_field.h"
+#include "vlasovpp/weno.h"
+#include "vlasovpp/fft.h"
+#include "vlasovpp/array_view.h"
+#include "vlasovpp/poisson.h"
+#include "vlasovpp/rk.h"
+#include "vlasovpp/config.h"
+#include "vlasovpp/signal_handler.h"
+#include "vlasovpp/iteration.h"
+#include "vlasovpp/splitting.h"
 
 namespace math = boost::math::constants;
 const std::complex<double> & I = std::complex<double>(0.,1.);
@@ -227,10 +227,10 @@ main ( int argc , char const * argv[] )
   };
 
   std::string name = "";//_tilde";
-  c << monitoring::data( "ee"s+name+".dat"s  , electric_energy   , writer_t_y );
-  c << monitoring::data( "eb"s+name+".dat"s  , magnetic_energy   , writer_t_y );
-  c << monitoring::data( "ec"s+name+".dat"s  , cold_energy       , writer_t_y );
-  c << monitoring::data( "ek"s+name+".dat"s  , kinetic_energy    , writer_t_y );
+  c << monitoring::make_data( "ee"s+name+".dat"s  , electric_energy   , writer_t_y );
+  c << monitoring::make_data( "eb"s+name+".dat"s  , magnetic_energy   , writer_t_y );
+  c << monitoring::make_data( "ec"s+name+".dat"s  , cold_energy       , writer_t_y );
+  c << monitoring::make_data( "ek"s+name+".dat"s  , kinetic_energy    , writer_t_y );
   //c << monitoring::data( "eex"s+name+".dat"s , electric_energy_x , writer_t_y );
   //c << monitoring::data( "eey"s+name+".dat"s , electric_energy_y , writer_t_y );
   //c << monitoring::data( "H"s+name+".dat"s   , total_energy      , writer_t_y );

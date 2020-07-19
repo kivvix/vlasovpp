@@ -13,16 +13,16 @@ using namespace std::string_literals;
 #include <boost/numeric/ublas/io.hpp>
 #include <boost/math/constants/constants.hpp>
 
-#include "miMaS/field.h"
-#include "miMaS/complex_field.h"
-#include "miMaS/weno.h"
-#include "miMaS/fft.h"
-#include "miMaS/array_view.h"
-#include "miMaS/poisson.h"
-#include "miMaS/rk.h"
-#include "miMaS/config.h"
-#include "miMaS/signal_handler.h"
-#include "miMaS/iteration.h"
+#include "vlasovpp/field.h"
+#include "vlasovpp/complex_field.h"
+#include "vlasovpp/weno.h"
+#include "vlasovpp/fft.h"
+#include "vlasovpp/array_view.h"
+#include "vlasovpp/poisson.h"
+#include "vlasovpp/rk.h"
+#include "vlasovpp/config.h"
+#include "vlasovpp/signal_handler.h"
+#include "vlasovpp/iteration.h"
 
 namespace math = boost::math::constants;
 const std::complex<double> & I = std::complex<double>(0.,1.);
