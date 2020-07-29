@@ -1420,6 +1420,8 @@ struct hybird1dx3dv
 
     const std::complex<double> & I = std::complex<double>(0.,1.);
     fft::spectrum_ hB(_Nz); hB.fft(By.begin());
+    //ublas::vector<double> tmp(_Nz,0.);
+    //fft::spectrum_ htmp(_Nz);
 
     for ( auto k_x=0u ; k_x<_Nvx ; ++k_x ) {
       _T vx = k_x*_dvx + _vx_min;
@@ -1427,19 +1429,34 @@ struct hybird1dx3dv
         _T vy = k_y*_dvy + _vy_min;
         for ( auto k_z=0u ; k_z<_Nvz ; ++k_z ) {
           _T vz = k_z*_dvz + _vz_min;
+          //for ( auto i=1u ; i<_Nz ; ++i )
+          //  { htmp[i] = -I*hB[i]/kz[i]*(std::exp(I*kz[i]*vz*dt)-1.); }
+          //htmp.ifft(tmp.begin());
+
           for ( auto i=0u ; i<_Nz ; ++i ) {
             _T z = i*_dz + _z_min;
 
+            
             std::complex<double> shBy = 0.;
-            for ( auto k=1u ; k<_Nz ; ++k ) {
-              shBy += -I*hB[k]*std::exp(I*kz[k]*z)/(kz[k])*( std::exp(I*kz[k]*vz*dt) - 1. );
+            for ( auto k=1u    ; k<_Nz/2 ; ++k ) {
+              shBy += -I*(hB[k]/static_cast<double>(_Nz)) / (kz[k]) * std::exp(I*kz[k]*z) * ( std::exp(I*kz[k]*vz*dt) - 1. );
             }
+            for ( int k=-_Nz/2 ; k<0 ; ++k ) {
+              shBy += -I*std::conj(hB[-k]/static_cast<double>(_Nz)) / (kz[_Nz+k]) * std::exp(I*kz[_Nz+k]*z) * ( std::exp(I*kz[_Nz+k]*vz*dt) - 1. );
+            }
+            /*
+            for ( auto k=1u ; k<_Nz/2 ; ++k ) {
+              shBy += -I*hB[k] / (kz[k]) * std::exp(I*kz[k]*z) * ( std::exp(I*kz[k]*vz*dt) - 1. );
+            }
+            */
 
-            // sBy is in theory a real
-            //if ( std::imag(shBy) >= 1e-5 ) { std::cerr << "\033[31;1m" << shBy << "\033[0m" << std::endl; }
+            // shBy is in theory a real
+            if ( std::imag(shBy) >= 1e-5 ) { std::cerr << "H_f_3_vx : \033[31;1m" << shBy << "\033[0m" << std::endl; }
             //std::cout << "\r" << hB[0] << " " << shBy << "   ";
+            
 
-            _T  vstar = vx - std::real(shBy);
+            _T  vstar = vx + std::real(shBy);
+            //_T  vstar = vx - tmp[i];
             int kstar = std::ceil((vstar - _vx_min)/_dvx);
 
             auto N = lagrange5::generator(
@@ -1470,6 +1487,8 @@ struct hybird1dx3dv
 
     const std::complex<double> & I = std::complex<double>(0.,1.);
     fft::spectrum_ hB(_Nz); hB.fft(Bx.begin());
+    //ublas::vector<double> tmp(_Nz,0.);
+    //fft::spectrum_ htmp(_Nz);
 
     for ( auto k_x=0u ; k_x<_Nvx ; ++k_x ) {
       _T vx = k_x*_dvx + _vx_min;
@@ -1477,19 +1496,34 @@ struct hybird1dx3dv
         _T vy = k_y*_dvy + _vy_min;
         for ( auto k_z=0u ; k_z<_Nvz ; ++k_z ) {
           _T vz = k_z*_dvz + _vz_min;
+          //for ( auto i=1u ; i<_Nz ; ++i )
+          //  { htmp[i] = -I*hB[i]/kz[i]*(std::exp(I*kz[i]*vz*dt)-1.); }
+          //htmp.ifft(tmp.begin());
+
           for ( auto i=0u ; i<_Nz ; ++i ) {
             _T z = i*_dz + _z_min;
 
             std::complex<double> shBx = 0.;
-            for ( auto k=1u ; k<_Nz ; ++k ) {
-              shBx += -I*hB[k]*std::exp(I*kz[k]*z)/(kz[k])*( std::exp(I*kz[k]*vz*dt) - 1. );
+            for ( auto k=1u    ; k<_Nz/2 ; ++k ) {
+              shBx += -I*(hB[k]/static_cast<double>(_Nz)) / (kz[k]) * std::exp(I*kz[k]*z) * ( std::exp(I*kz[k]*vz*dt) - 1. );
+            }
+            for ( int k=-_Nz/2 ; k<0 ; ++k ) {
+              shBx += -I*std::conj(hB[-k]/static_cast<double>(_Nz)) / (kz[_Nz+k]) * std::exp(I*kz[_Nz+k]*z) * ( std::exp(I*kz[_Nz+k]*vz*dt) - 1. );
             }
 
-            // sBy is in theory a real
-            //if ( std::imag(shBx) >= 1e-5 ) { std::cerr << "\033[31;1m" << shBx << "\033[0m" << std::endl; }
+            /*
+            std::complex<double> shBx = 0.;
+            for ( auto k=1u ; k<_Nz ; ++k ) {
+              shBx += -I*hB[k] / (kz[k]) * std::exp(I*kz[k]*z) * ( std::exp(I*kz[k]*vz*dt) - 1. );
+            }
+            */
+
+            // shBx is in theory a real
+            if ( std::imag(shBx) >= 1e-5 ) { std::cerr << "H_f_3_vy : \033[31;1m" << shBx << "\033[0m" << std::endl; }
             //std::cout << "\r" << hB[0] << " " << shBx << "   ";
 
-            _T  vstar = vy + std::real(shBx);
+            _T  vstar = vy - std::real(shBx);
+            //_T vstar = vy + tmp[i];
             int kstar = std::ceil((vstar - _vy_min)/_dvy);
 
             auto N = lagrange5::generator(

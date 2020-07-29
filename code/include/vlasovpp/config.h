@@ -158,7 +158,7 @@ make_data ( fs::path && _file , const Container & _dat , Writer _writer ) {
   return data<Container,Writer>(std::move(_file),_dat,_writer);
 }
 
-template < typename Container , typename Writer >
+template < typename Container >
 struct reactive_monitoring
 {
   std::ofstream file;
@@ -168,13 +168,17 @@ struct reactive_monitoring
 
   template < typename FileConstructible >
   reactive_monitoring ( FileConstructible && _file , const Container & _time , std::initializer_list<Container*> _arr_data )
-    : file(std::move(_file)) , ptr_time(&time) , arr_data(_arr_data.size()) , index(0)
+    : file(std::move(_file)) , ptr_time(&_time) , arr_data(_arr_data.size()) , index(0)
   {
     auto it = arr_data.begin();
     for ( auto ptr : _arr_data ) {
       *it = ptr;
       ++it;
     }
+  }
+  ~reactive_monitoring ()
+  {
+    file.close();
   }
 
   void
