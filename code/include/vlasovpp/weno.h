@@ -277,4 +277,67 @@ trp_v ( field<_T,NumDimsV> const& u , ublas::vector<_T> const& E )
 }
 
 } // namespace wenolin
+
+namespace weno3d {
+
+  using namespace boost::numeric;
+  #define SQ(X) ((X)*(X))
+
+  template < typename _T >
+  _T
+  dv_weno ( _T velocity , _T uim3 , _T uim2 , _T uim1 , _T ui , _T uip1 , _T uip2 , _T uip3 , _T dx ) {
+    _T vp = std::max(velocity,0.);
+    _T vm = std::min(velocity,0.);
+
+    auto fip12 = weno::local_flux(uim2,uim1,ui,uip1,uip2,uip3);
+    auto fim12 = weno::local_flux(uim3,uim2,uim1,ui,uip1,uip2);
+
+    return ( vp*(fip12.first - fim12.first) + vm*(fip12.second - fim12.second) )/dx;
+  }
+
+  std::tuple<std::size_t,std::size_t,std::size_t,std::size_t,std::size_t,std::size_t,std::size_t>
+  periodic_index ( const std::size_t N , const std::size_t k ) {
+    std::size_t km3 = static_cast<std::size_t>(k-3), km2 = static_cast<std::size_t>(k-2), km1 = static_cast<std::size_t>(k-1),
+                kp1 = static_cast<std::size_t>(k+1), kp2 = static_cast<std::size_t>(k+2), kp3 = static_cast<std::size_t>(k+3);
+    if ( k < 3u ) {
+      km3 = static_cast<std::size_t>(( k-3 +N)%N); km2 = static_cast<std::size_t>(( k-2 +N)%N); km1 = static_cast<std::size_t>(( k-1 +N)%N);
+    }
+    if ( k >= N-3 ) {
+      kp1 = static_cast<std::size_t>(( k+1 )%N); kp2 = static_cast<std::size_t>(( k+2 )%N); kp3 = static_cast<std::size_t>(( k+3 )%N);
+    }
+    return std::make_tuple(km3,km2,km1,k,kp1,kp2,kp3);
+  }
+
+  template < typename _T >
+  _T
+  weno_vx ( _T velocity , field3d<_T> const& u , std::size_t k_x , std::size_t k_y , std::size_t k_z , std::size_t i ) {
+    const std::size_t Nvx = u.size(0);
+    std::size_t kxm3, kxm2, kxm1, kx, kxp1, kxp2, kxp3;
+    std::tie(kxm3,kxm2,kxm1,kx,kxp1,kxp2,kxp3) = periodic_index(Nvx,k_x);
+
+    return dv_weno( velocity , u[kxm3][k_y][k_z][i] , u[kxm2][k_y][k_z][i] , u[kxm1][k_y][k_z][i] , u[kx][k_y][k_z][i] , u[kxp1][k_y][k_z][i] , u[kxp2][k_y][k_z][i] , u[kxp3][k_y][k_z][i] , u.step.dvx );
+  }
+
+  template < typename _T >
+  _T
+  weno_vy ( _T velocity , field3d<_T> const& u , std::size_t k_x , std::size_t k_y , std::size_t k_z , std::size_t i ) {
+    const std::size_t Nvy = u.size(1);
+    std::size_t kym3, kym2, kym1, ky, kyp1, kyp2, kyp3;
+    std::tie(kym3,kym2,kym1,ky,kyp1,kyp2,kyp3) = periodic_index(Nvy,k_y);
+
+    return dv_weno( velocity , u[k_x][kym3][k_z][i] , u[k_x][kym2][k_z][i] , u[k_x][kym1][k_z][i] , u[k_x][ky][k_z][i] , u[k_x][kyp1][k_z][i] , u[k_x][kyp2][k_z][i] , u[k_x][kyp3][k_z][i] , u.step.dvy );
+  }
+
+  template < typename _T >
+  _T
+  weno_vz ( _T velocity , field3d<_T> const& u , std::size_t k_x , std::size_t k_y , std::size_t k_z , std::size_t i ) {
+    const std::size_t Nvz = u.size(2);
+    std::size_t kzm3, kzm2, kzm1, kz, kzp1, kzp2, kzp3;
+    std::tie(kzm3,kzm2,kzm1,kz,kzp1,kzp2,kzp3) = periodic_index(Nvz,k_z);
+
+    return dv_weno( velocity , u[k_x][k_y][kzm3][i] , u[k_x][k_y][kzm2][i] , u[k_x][k_y][kzm1][i] , u[k_x][k_y][kz][i] , u[k_x][k_y][kzp1][i] , u[k_x][k_y][kzp2][i] , u[k_x][k_y][kzp3][i] , u.step.dvz );
+  }
+
+}
+
 #endif

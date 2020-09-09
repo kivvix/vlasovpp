@@ -68,9 +68,9 @@ main ( int argc , char const * argv[] )
   complex_field<double,3> hf(boost::extents[c.Nvx][c.Nvy][c.Nvz][c.Nz]);
 
   const double K = 2.;
-  f.range.vx_min = -3.; f.range.vx_max = 3.;
-  f.range.vy_min = -3.; f.range.vy_max = 3.;
-  f.range.vz_min = -3.; f.range.vz_max = 3.;
+  f.range.vx_min = -4.; f.range.vx_max = 4.;
+  f.range.vy_min = -4.; f.range.vy_max = 4.;
+  f.range.vz_min = -4.; f.range.vz_max = 4.;
   f.range.z_min =  0.;  f.range.z_max = 2.*math::pi<double>()/K;
   f.compute_steps();
   const double v_par  = 0.2;
@@ -102,7 +102,7 @@ main ( int argc , char const * argv[] )
   fvyz.range.x_min = f.range.vz_min; fvyz.range.x_max = f.range.vz_max;
   fvyz.compute_steps();
 
-  auto M1 = maxwellian(nh,{0.,0.,0.},{v_par,v_perp,v_perp});
+  auto M1 = maxwellian(nh,{0.,0.,0.},{v_perp,v_perp,v_par});
   for (std::size_t k_x=0u ; k_x<f.size(0) ; ++k_x ) {
     for (std::size_t k_y=0u ; k_y<f.size(1) ; ++k_y ) {
       for (std::size_t k_z=0u ; k_z<f.size(2) ; ++k_z ) {
@@ -240,6 +240,7 @@ main ( int argc , char const * argv[] )
   std::tie(m,ek) = compute_mass_kinetic_energy(hf);
   kinetic_energy.push_back(ek);
   mass.push_back(m);
+  monitoring::reactive_monitoring moni( c.output_dir/"energy.dat" , times , {&electric_energy,&magnetic_energy,&cold_energy,&kinetic_energy} );
   //total_energy.push_back( compute_total_energy(jcx,jcy,Ex,Ey,Bx,By,hf) );
 
   while ( current_t<c.Tf ) {
@@ -258,8 +259,10 @@ main ( int argc , char const * argv[] )
     kinetic_energy.push_back(ek);
     mass.push_back(m);
 
+
     current_t += dt;
     times.push_back(current_t);
+    moni.push();
   }
 
   auto writer_t_y = [&,count=0] (auto const& y) mutable {

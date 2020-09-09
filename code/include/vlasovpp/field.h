@@ -441,6 +441,7 @@ class field3d : public field<_T,3>
 {
   public:
     using field<_T,3>::field;
+    using field<_T,3>::size;
 
     struct step
     {
@@ -463,6 +464,10 @@ class field3d : public field<_T,3>
     _T
     volumeV () const
     { return step.dvx*step.dvy*step.dvz; }
+
+    inline typename field<_T,3>::size_type
+    size_z () const
+    { return field<_T,3>::size_x(); }
 
     void
     compute_steps ()
