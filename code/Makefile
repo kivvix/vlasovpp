@@ -26,8 +26,14 @@ SRC = $(wildcard $(SRC_dir)/*.cc)
 OBJ = $(SRC:$(SRC_dir)/%.cc=$(OBJ_dir)/%.o)
 INC = $(wildcard $(HEADER_dir)/*.h)
 
-# compilation flags
-GLLIBS = -lm #-lstdc++fs
+GLLIBS = -lm
+
+# check GCC version for flags
+CXX_v = $(shell $(CXX) -dumpversion | awk -F '.' '{ print $$1 }')
+CXX_vleq8 = $(shell [[ $(CXX_v) -le 8 ]] && echo "True" || echo "False")
+ifeq ($(CXX_vleq8),True)
+    GLLIBS += -lstdc++fs
+endif
 
 ifeq ($(DEBUG_MODE),Y)
 	CFLAGS += -O0 -DDEBUG_MODE -Wall
@@ -45,6 +51,8 @@ LD = $(CXX) -fPIC -shared
 LDFLAGS = $(CFLAGS)
 
 ### BUILD RULES #######################################################
+bidon:
+	$(echo) $(UN)
 
 all : $(LIB_dir)/lib$(PROJET).so
 	@$(echo) "all your base are belong to us"
