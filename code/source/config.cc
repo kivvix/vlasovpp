@@ -50,6 +50,8 @@ config::config( fs::path && path_config )
 
   convertor convert(std::move(path_config));
 
+  dt0 = convert("dt0",0.1);
+
   Nx = convert("Nx",135);
   Nv = convert("Nv",256);
 
@@ -57,10 +59,16 @@ config::config( fs::path && path_config )
   Nvx = convert("Nvx",16);
   Nvy = convert("Nvy",16);
   Nvz = convert("Nvz",27);
-  
+
   Tc = convert("Tc",0.01);
   ui = convert("ui",3.4);
+
   alpha = convert("alpha",0.2);
+
+  nh     = convert("nh"    ,0.2);
+  v_perp = convert("v_perp",0.6);
+  v_par  = convert("v_par" ,0.2);
+  K      = convert("K"     ,2.0);
 
   Tf = convert("Tf",10.0);
   tol = convert("tol",1e-5);
@@ -74,7 +82,9 @@ config::create_output_directory () const
 std::ostream &
 operator << ( std::ostream & os , const config & c )
 {
-  os << "Nx " << c.Nx << "\n"
+  os << "dt0 " << c.dt0 << "\n"
+
+     << "Nx " << c.Nx << "\n"
      << "Nv " << c.Nv << "\n"
 
      << "Nz "  << c.Nz << "\n"
@@ -83,8 +93,14 @@ operator << ( std::ostream & os , const config & c )
      << "Nvz " << c.Nvz << "\n"
 
      << "Tc " << c.Tc << "\n"
-     << "ui " << c.ui << "\n" 
+     << "ui " << c.ui << "\n"
+
      << "alpha " << c.alpha << "\n"
+
+     << "nh " << c.nh << "\n"
+     << "v_perp " << c.v_perp << "\n"
+     << "v_par "  << c.v_par  << "\n"
+     << "K " << c.K << "\n"
 
      << "Tf " << c.Tf << "\n"
      << "tol " << c.tol << "\n"

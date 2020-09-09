@@ -90,12 +90,16 @@ converter(std::string);
 **/
 struct config {
   std::string name;
+  double dt0;
   std::size_t Nx, Nv; // for 1dx1dv
   std::size_t Nz, Nvx,Nvy,Nvz; // for 1dx3dv
   double Tc;
   double Tf;
   double ui;
   double alpha;
+  double nh;
+  double v_par,v_perp;
+  double K;
   double tol;
   fs::path output_dir;
 
@@ -115,7 +119,7 @@ struct config {
     Nvx = convert("Nvx",16);
     Nvy = convert("Nvy",16);
     Nvz = convert("Nvz",27);
-    
+
     Tc = convert("Tc",0.01);
     ui = convert("ui",3.4);
     alpha = convert("alpha",0.2);
