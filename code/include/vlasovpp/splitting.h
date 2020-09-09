@@ -1330,7 +1330,7 @@ struct hybird1dx3dv
     }
 
     for ( auto i=0u ; i<_Nz ; ++i ) {
-      Ex[i] = Ex[i] + dt*jx[i] - dt*mean;
+      Ex[i] += dt*(jx[i] - mean);
     }
   }
 
@@ -1403,7 +1403,7 @@ struct hybird1dx3dv
     }
 
     for ( auto i=0u ; i<_Nz ; ++i ) {
-      Ey[i] = Ey[i] + dt*jy[i] - dt*mean;
+      Ey[i] += dt*(jy[i] - mean);
     }
   }
 
@@ -1436,7 +1436,6 @@ struct hybird1dx3dv
           for ( auto i=0u ; i<_Nz ; ++i ) {
             _T z = i*_dz + _z_min;
 
-            
             std::complex<double> shBy = 0.;
             for ( auto k=1u    ; k<_Nz/2 ; ++k ) {
               shBy += -I*(hB[k]/static_cast<double>(_Nz)) / (kz[k]) * std::exp(I*kz[k]*z) * ( std::exp(I*kz[k]*vz*dt) - 1. );
@@ -1455,7 +1454,7 @@ struct hybird1dx3dv
             //std::cout << "\r" << hB[0] << " " << shBy << "   ";
             
 
-            _T  vstar = vx + std::real(shBy);
+            _T  vstar = vx - std::real(shBy);
             //_T  vstar = vx - tmp[i];
             int kstar = std::ceil((vstar - _vx_min)/_dvx);
 
@@ -1522,7 +1521,7 @@ struct hybird1dx3dv
             if ( std::imag(shBx) >= 1e-5 ) { std::cerr << "H_f_3_vy : \033[31;1m" << shBx << "\033[0m" << std::endl; }
             //std::cout << "\r" << hB[0] << " " << shBx << "   ";
 
-            _T  vstar = vy - std::real(shBx);
+            _T  vstar = vy + std::real(shBx);
             //_T vstar = vy + tmp[i];
             int kstar = std::ceil((vstar - _vy_min)/_dvy);
 
@@ -1687,7 +1686,7 @@ struct hybird1dx3dv
           \partial_t E_{y} = \int v_y f\,\mathrm{d}v //
           \partial_t B_{x} = 0 //
           \partial_t B_{y} = 0 //
-          \partial_t f + v_z\partial_z f - (v_yB_0 - v_zB_y)\partial_{v_x} f - (-v_xB_0 + v_zB_0)\partial_{v_y} f - (v_xB_y - v_yB_x)\partial_{v_z} f = 0 //
+          \partial_t f + v_z\partial_z f - (v_yB_0 - v_zB_y)\partial_{v_x} f - (-v_xB_0 + v_zB_x)\partial_{v_y} f - (v_xB_y - v_yB_x)\partial_{v_z} f = 0 //
         \end{cases}
       $$
       with `B0=1`.
