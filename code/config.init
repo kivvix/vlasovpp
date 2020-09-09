@@ -4,9 +4,12 @@ Nz 27
 Nvx 32
 Nvy 32
 Nvz 33
+dt0 0.01
+K 2
+nh 0.2
 Tc 0.2
-Tf 50
+Tf 5.0
 ui 4.
-alpha 0.1
+alpha 0.0001
 tol 1e-04
-output_dir hybrid1dx3dv
+output_dir test3d
