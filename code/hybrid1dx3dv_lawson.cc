@@ -54,11 +54,11 @@ main ( int argc , char const * argv[] )
   if ( argc > 1 )
     { p = argv[1]; }
   auto c = config(p);
-  c.name = "vmll";
+  c.name = "vmhll";
 
   c.create_output_directory();
   {
-    std::ofstream ofconfig( c.output_dir / "config.init" );
+    std::ofstream ofconfig( c.output_dir / ("config_"s + c.name + ".init"s) );
     ofconfig << c << "\n";
     ofconfig.close();
   }
@@ -67,15 +67,15 @@ main ( int argc , char const * argv[] )
   field3d<double> f(boost::extents[c.Nvx][c.Nvy][c.Nvz][c.Nz]);
   complex_field<double,3> hf(boost::extents[c.Nvx][c.Nvy][c.Nvz][c.Nz]);
 
-  const double K = 2.;
-  f.range.vx_min = -4.; f.range.vx_max = 4.;
-  f.range.vy_min = -4.; f.range.vy_max = 4.;
-  f.range.vz_min = -4.; f.range.vz_max = 4.;
+  const double K = c.K;
+  f.range.vx_min = -3.6; f.range.vx_max = 3.6;
+  f.range.vy_min = -3.6; f.range.vy_max = 3.6;
+  f.range.vz_min = -1.2; f.range.vz_max = 1.2;
   f.range.z_min =  0.;  f.range.z_max = 2.*math::pi<double>()/K;
   f.compute_steps();
-  const double v_par  = 0.2;
-  const double v_perp = 0.6;
-  const double nh = 0.2;
+  const double v_par  = c.v_par;
+  const double v_perp = c.v_perp;
+  const double nh = c.nh;
 
   double dt = c.dt0;
 
@@ -184,7 +184,7 @@ main ( int argc , char const * argv[] )
   std::tie(m,ek) = compute_mass_kinetic_energy(hf);
   kinetic_energy.push_back(ek);
   mass.push_back(m);
-  monitoring::reactive_monitoring moni( c.output_dir/"energy.dat" , times , {&electric_energy,&magnetic_energy,&cold_energy,&kinetic_energy} );
+  monitoring::reactive_monitoring<std::vector<double>> moni( c.output_dir/("energy_"s + c.name + ".dat"s) , times , {&electric_energy,&magnetic_energy,&cold_energy,&kinetic_energy} );
 
   ublas::vector<std::complex<double>> hjcx(c.Nz,0.), hjcx1(c.Nz,0.), hjcx2(c.Nz,0.),
                                       hjcy(c.Nz,0.), hjcy1(c.Nz,0.), hjcy2(c.Nz,0.),
@@ -260,7 +260,7 @@ main ( int argc , char const * argv[] )
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
             double v_z = k_z*f.step.dvz + f.range.vz_min;
             for ( auto i=0u ; i<c.Nz ; ++i ) {
-              double velocity_vx = Ex[i] + v_y*B0 + v_z*By[i];
+              double velocity_vx = Ex[i] + v_y*B0 - v_z*By[i];
               double velocity_vy = Ey[i] - v_x*B0 + v_z*Bx[i];
               double velocity_vz = v_x*By[i] - v_y*Bx[i];
               dvf[k_x][k_y][k_z][i] = weno3d::weno_vx(velocity_vx,f,k_x,k_y,k_z,i)
@@ -345,7 +345,7 @@ main ( int argc , char const * argv[] )
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
             double v_z = k_z*f.step.dvz + f.range.vz_min;
             for ( auto i=0u ; i<c.Nz ; ++i ) {
-              double velocity_vx = Ex[i] + v_y*B0 + v_z*By[i];
+              double velocity_vx = Ex[i] + v_y*B0 - v_z*By[i];
               double velocity_vy = Ey[i] - v_x*B0 + v_z*Bx[i];
               double velocity_vz = v_x*By[i] - v_y*Bx[i];
               dvf[k_x][k_y][k_z][i] = weno3d::weno_vx(velocity_vx,f,k_x,k_y,k_z,i)
@@ -437,7 +437,7 @@ main ( int argc , char const * argv[] )
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
             double v_z = k_z*f.step.dvz + f.range.vz_min;
             for ( auto i=0u ; i<c.Nz ; ++i ) {
-              double velocity_vx = Ex[i] + v_y*B0 + v_z*By[i];
+              double velocity_vx = Ex[i] + v_y*B0 - v_z*By[i];
               double velocity_vy = Ey[i] - v_x*B0 + v_z*Bx[i];
               double velocity_vz = v_x*By[i] - v_y*Bx[i];
               dvf[k_x][k_y][k_z][i] = weno3d::weno_vx(velocity_vx,f,k_x,k_y,k_z,i)
@@ -501,15 +501,14 @@ main ( int argc , char const * argv[] )
     }
   }
 
-  fvxz.write(c.output_dir/"fvxz_end.dat");
-  fvyz.write(c.output_dir/"fvyz_end.dat");
+  fvxz.write(c.output_dir/("fvxz_end_"s + c.name + ".dat"s));
+  fvyz.write(c.output_dir/("fvyz_end_"s + c.name + ".dat"s));
 
-  std::string name = "";//_tilde";
-  c << monitoring::make_data( "ee"s+name+".dat"s  , electric_energy   , writer_t_y );
-  c << monitoring::make_data( "eb"s+name+".dat"s  , magnetic_energy   , writer_t_y );
-  c << monitoring::make_data( "ec"s+name+".dat"s  , cold_energy       , writer_t_y );
-  c << monitoring::make_data( "ek"s+name+".dat"s  , kinetic_energy    , writer_t_y );
-  c << monitoring::make_data( "m"s+name+".dat"s   , mass              , writer_t_y );
+  c << monitoring::make_data( "ee"c.name+".dat"s  , electric_energy   , writer_t_y );
+  c << monitoring::make_data( "eb"c.name+".dat"s  , magnetic_energy   , writer_t_y );
+  c << monitoring::make_data( "ec"c.name+".dat"s  , cold_energy       , writer_t_y );
+  c << monitoring::make_data( "ek"c.name+".dat"s  , kinetic_energy    , writer_t_y );
+  c << monitoring::make_data( "m"c.name+".dat"s   , mass              , writer_t_y );
 
   return 0;
 }

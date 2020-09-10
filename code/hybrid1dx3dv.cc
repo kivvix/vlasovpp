@@ -58,7 +58,7 @@ main ( int argc , char const * argv[] )
 
   c.create_output_directory();
   {
-    std::ofstream ofconfig( c.output_dir / "config.init" );
+    std::ofstream ofconfig( c.output_dir / ("config_"s + c.name + ".init"s) );
     ofconfig << c << "\n";
     ofconfig.close();
   }
@@ -249,7 +249,8 @@ main ( int argc , char const * argv[] )
   std::tie(m,ek) = compute_mass_kinetic_energy(hf);
   kinetic_energy.push_back(ek);
   mass.push_back(m);
-  monitoring::reactive_monitoring<std::vector<double>> moni( c.output_dir/"energy_tilde.dat" , times , {&electric_energy,&magnetic_energy,&cold_energy,&kinetic_energy} );
+  monitoring::reactive_monitoring<std::vector<double>> moni( c.output_dir/("energy_"s + c.name + ".dat"s) , times , {&electric_energy,&magnetic_energy,&cold_energy,&kinetic_energy} );
+
   //total_energy.push_back( compute_total_energy(jcx,jcy,Ex,Ey,Bx,By,hf) );
 
   while ( current_t<c.Tf ) {
@@ -298,16 +299,17 @@ main ( int argc , char const * argv[] )
     }
   }
 
-  fvxz.write(c.output_dir/"fvxz_end.dat");
-  fvyz.write(c.output_dir/"fvyz_end.dat");
-  c << monitoring::make_data( "int_f_end.dat" , int_f_end , writer_z_y );
 
   std::string name = "_tilde";
-  c << monitoring::make_data( "ee"s+name+".dat"s  , electric_energy   , writer_t_y );
-  c << monitoring::make_data( "eb"s+name+".dat"s  , magnetic_energy   , writer_t_y );
-  c << monitoring::make_data( "ec"s+name+".dat"s  , cold_energy       , writer_t_y );
-  c << monitoring::make_data( "ek"s+name+".dat"s  , kinetic_energy    , writer_t_y );
-  c << monitoring::make_data( "m"s+name+".dat"s   , mass              , writer_t_y );
+  fvxz.write(c.output_dir/("fvxz_end_"s + c.name + ".dat"s));
+  fvyz.write(c.output_dir/("fvyz_end_"s + c.name + ".dat"s));
+  c << monitoring::make_data( "int_f_end"s + c.name + ".dat" , int_f_end , writer_z_y );
+
+  c << monitoring::make_data( "ee"c.name+".dat"s  , electric_energy   , writer_t_y );
+  c << monitoring::make_data( "eb"c.name+".dat"s  , magnetic_energy   , writer_t_y );
+  c << monitoring::make_data( "ec"c.name+".dat"s  , cold_energy       , writer_t_y );
+  c << monitoring::make_data( "ek"c.name+".dat"s  , kinetic_energy    , writer_t_y );
+  c << monitoring::make_data( "m"c.name+".dat"s   , mass              , writer_t_y );
   //c << monitoring::data( "eex"s+name+".dat"s , electric_energy_x , writer_t_y );
   //c << monitoring::data( "eey"s+name+".dat"s , electric_energy_y , writer_t_y );
   //c << monitoring::data( "H"s+name+".dat"s   , total_energy      , writer_t_y );
