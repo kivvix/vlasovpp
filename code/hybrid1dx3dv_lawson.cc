@@ -465,6 +465,14 @@ main ( int argc , char const * argv[] )
       }
     } // end thrid stage
 
+
+    fft::ifft(hEx.begin(),hEx.end(),Ex.begin());
+    fft::ifft(hEy.begin(),hEy.end(),Ey.begin());
+    fft::ifft(hBx.begin(),hBx.end(),Bx.begin());
+    fft::ifft(hBy.begin(),hBy.end(),By.begin());
+    fft::ifft(hjcx.begin(),hjcx.end(),jcx.begin());
+    fft::ifft(hjcy.begin(),hjcy.end(),jcy.begin());
+
     electric_energy.push_back(compute_electric_energy(Ex,Ey));
     magnetic_energy.push_back(compute_magnetic_energy(Bx,By));
     cold_energy.push_back(compute_cold_energy(jcx,jcy));
