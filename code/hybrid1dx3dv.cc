@@ -54,7 +54,7 @@ main ( int argc , char const * argv[] )
   if ( argc > 1 )
     { p = argv[1]; }
   auto c = config(p);
-  c.name = "vmls";
+  c.name = "vmhls";
 
   c.create_output_directory();
   {
