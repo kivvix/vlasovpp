@@ -77,7 +77,7 @@ main ( int argc , char const * argv[] )
   const double v_perp = c.v_perp;
   const double nh = c.nh;
 
-  double dt = c.dt0;
+  double dt = std::min({c.dt0,f.step.dvx,f.step.dvy,f.step.dvz});;
 
   ublas::vector<double> vx(c.Nv,0.),vy(c.Nv,0.),vz(c.Nv,0.);
   std::generate( vx.begin() , vx.end() , [&,k=0]() mutable {return (k++)*f.step.dvx+f.range.vx_min;} );
