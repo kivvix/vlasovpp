@@ -279,7 +279,7 @@ main ( int argc , char const * argv[] )
           double v_y = k_y*f.step.dvy + f.range.vy_min;
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
             double v_z = k_z*f.step.dvz + f.range.vz_min;
-            fft::fft( f[k_x][k_y][k_z].begin() , f[k_x][k_y][k_z].end() , hfvxvyvz.begin() );
+            fft::fft( dvf[k_x][k_y][k_z].begin() , dvf[k_x][k_y][k_z].end() , hfvxvyvz.begin() );
             for ( auto i=0u ; i<c.Nz ; ++i ) {
               hf1[k_x][k_y][k_z][i] = 1.0*(dt*hfvxvyvz[i] + hf[k_x][k_y][k_z][i])*std::exp(-1.0*I*Kz[i]*dt*v_z);
             }
@@ -364,7 +364,7 @@ main ( int argc , char const * argv[] )
           double v_y = k_y*f.step.dvy + f.range.vy_min;
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
             double v_z = k_z*f.step.dvz + f.range.vz_min;
-            fft::fft( f[k_x][k_y][k_z].begin() , f[k_x][k_y][k_z].end() , hfvxvyvz.begin() );
+            fft::fft( dvf[k_x][k_y][k_z].begin() , dvf[k_x][k_y][k_z].end() , hfvxvyvz.begin() );
             for ( auto i=0u ; i<c.Nz ; ++i ) {
               hf2[k_x][k_y][k_z][i] = (0.75*hf[k_x][k_y][k_z][i] + 0.25*(dt*hfvxvyvz[i] + hf1[k_x][k_y][k_z][i])*std::exp(1.5*I*Kz[i]*dt*v_z))*std::exp(-1.0*I*Kz[i]*dt*v_z);
             }
@@ -456,7 +456,7 @@ main ( int argc , char const * argv[] )
           double v_y = k_y*f.step.dvy + f.range.vy_min;
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
             double v_z = k_z*f.step.dvz + f.range.vz_min;
-            fft::fft( f[k_x][k_y][k_z].begin() , f[k_x][k_y][k_z].end() , hfvxvyvz.begin() );
+            fft::fft( dvf[k_x][k_y][k_z].begin() , dvf[k_x][k_y][k_z].end() , hfvxvyvz.begin() );
             for ( auto i=0u ; i<c.Nz ; ++i ) {
               hf[k_x][k_y][k_z][i] = (0.333333333333333*hf[k_x][k_y][k_z][i]*std::exp(0.5*I*Kz[i]*dt*v_z) + 0.666666666666667*(dt*hfvxvyvz[i] + hf2[k_x][k_y][k_z][i])*std::exp(1.0*I*Kz[i]*dt*v_z))*std::exp(-1.5*I*Kz[i]*dt*v_z);
             }
