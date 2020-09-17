@@ -54,14 +54,9 @@ main ( int argc , char const * argv[] )
   if ( argc > 1 )
     { p = argv[1]; }
   auto c = config(p);
-  c.name = "vmhll";
-
   c.create_output_directory();
-  {
-    std::ofstream ofconfig( c.output_dir / ("config_"s + c.name + ".init"s) );
-    ofconfig << c << "\n";
-    ofconfig.close();
-  }
+
+  c.name = "vmhll";
 
 /* ------------------------------------------------------------------------- */
   field3d<double> f(boost::extents[c.Nvx][c.Nvy][c.Nvz][c.Nz]);
@@ -77,7 +72,19 @@ main ( int argc , char const * argv[] )
   const double v_perp = c.v_perp;
   const double nh = c.nh;
 
-  double dt = std::min({c.dt0,f.step.dvx,f.step.dvy,f.step.dvz});;
+  double dt = std::min({
+        c.dt0,
+        0.5*f.step.dz,
+        0.5*f.step.dvx/f.range.vy_max,
+        0.5*f.step.dvy/f.range.vx_max,
+        0.5*f.step.dvz
+      });
+  c.dt0 = dt;
+  {
+    std::ofstream ofconfig( c.output_dir / ("config_"s + c.name + ".init"s) );
+    ofconfig << c << "\n";
+    ofconfig.close();
+  }
 
   ublas::vector<double> vx(c.Nv,0.),vy(c.Nv,0.),vz(c.Nv,0.);
   std::generate( vx.begin() , vx.end() , [&,k=0]() mutable {return (k++)*f.step.dvx+f.range.vx_min;} );
@@ -263,9 +270,9 @@ main ( int argc , char const * argv[] )
               double velocity_vx = Ex[i] + v_y*B0 - v_z*By[i];
               double velocity_vy = Ey[i] - v_x*B0 + v_z*Bx[i];
               double velocity_vz = v_x*By[i] - v_y*Bx[i];
-              dvf[k_x][k_y][k_z][i] = weno3d::weno_vx(velocity_vx,f,k_x,k_y,k_z,i)
-                                    + weno3d::weno_vy(velocity_vy,f,k_x,k_y,k_z,i)
-                                    + weno3d::weno_vz(velocity_vz,f,k_x,k_y,k_z,i);
+              dvf[k_x][k_y][k_z][i] = - weno3d::weno_vx(velocity_vx,f,k_x,k_y,k_z,i)
+                                      - weno3d::weno_vy(velocity_vy,f,k_x,k_y,k_z,i)
+                                      - weno3d::weno_vz(velocity_vz,f,k_x,k_y,k_z,i);
             }
           }
         }
@@ -348,9 +355,9 @@ main ( int argc , char const * argv[] )
               double velocity_vx = Ex[i] + v_y*B0 - v_z*By[i];
               double velocity_vy = Ey[i] - v_x*B0 + v_z*Bx[i];
               double velocity_vz = v_x*By[i] - v_y*Bx[i];
-              dvf[k_x][k_y][k_z][i] = weno3d::weno_vx(velocity_vx,f,k_x,k_y,k_z,i)
-                                    + weno3d::weno_vy(velocity_vy,f,k_x,k_y,k_z,i)
-                                    + weno3d::weno_vz(velocity_vz,f,k_x,k_y,k_z,i);
+              dvf[k_x][k_y][k_z][i] = - weno3d::weno_vx(velocity_vx,f,k_x,k_y,k_z,i)
+                                      - weno3d::weno_vy(velocity_vy,f,k_x,k_y,k_z,i)
+                                      - weno3d::weno_vz(velocity_vz,f,k_x,k_y,k_z,i);
             }
           }
         }
@@ -440,9 +447,9 @@ main ( int argc , char const * argv[] )
               double velocity_vx = Ex[i] + v_y*B0 - v_z*By[i];
               double velocity_vy = Ey[i] - v_x*B0 + v_z*Bx[i];
               double velocity_vz = v_x*By[i] - v_y*Bx[i];
-              dvf[k_x][k_y][k_z][i] = weno3d::weno_vx(velocity_vx,f,k_x,k_y,k_z,i)
-                                    + weno3d::weno_vy(velocity_vy,f,k_x,k_y,k_z,i)
-                                    + weno3d::weno_vz(velocity_vz,f,k_x,k_y,k_z,i);
+              dvf[k_x][k_y][k_z][i] = - weno3d::weno_vx(velocity_vx,f,k_x,k_y,k_z,i)
+                                      - weno3d::weno_vy(velocity_vy,f,k_x,k_y,k_z,i)
+                                      - weno3d::weno_vz(velocity_vz,f,k_x,k_y,k_z,i);
             }
           }
         }
