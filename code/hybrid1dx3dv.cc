@@ -57,11 +57,6 @@ main ( int argc , char const * argv[] )
   c.name = "vmhls";
 
   c.create_output_directory();
-  {
-    std::ofstream ofconfig( c.output_dir / ("config_"s + c.name + ".init"s) );
-    ofconfig << c << "\n";
-    ofconfig.close();
-  }
 
 /* ------------------------------------------------------------------------- */
   field3d<double> f(boost::extents[c.Nvx][c.Nvy][c.Nvz][c.Nz]);
@@ -77,7 +72,12 @@ main ( int argc , char const * argv[] )
   const double v_perp = c.v_perp;
   const double nh = c.nh;
 
-  double dt = c.dt0;
+  double dt = std::min(c.dt0,f.step.dz);
+  {
+    std::ofstream ofconfig( c.output_dir / ("config_"s + c.name + ".init"s) );
+    ofconfig << c << "\n";
+    ofconfig.close();
+  }
 
   ublas::vector<double> vx(c.Nv,0.),vy(c.Nv,0.),vz(c.Nv,0.);
   std::generate( vx.begin() , vx.end() , [&,k=0]() mutable {return (k++)*f.step.dvx+f.range.vx_min;} );
