@@ -63,13 +63,28 @@ struct signal_handler {
   }
 
   /**
-    example:
+    examples:
 
     ```c++
       int i=42;
       signals_handler::signals_handler<SIGINT,SIGILL>::handler([&](int signal)->void {
         std::cerr << "what is the value of i ?\n...\n\n" << i << "\n";
       });
+    ```
+
+    ```c++
+      int main() {
+        int i=0;
+        signals_handler::signals_handler<SIGINT,SIGILL>::handler([&](int signal)->void {
+          std::cerr << "value of i :" << i << "\n";
+        });
+
+        while (true) { // just wait to be interrupted
+          ++i;
+        }
+
+        return 0;
+      }
     ```
   **/
 

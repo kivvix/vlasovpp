@@ -103,33 +103,7 @@ struct config {
   double tol;
   fs::path output_dir;
 
-  /*
-  template <typename OPENABLE>
-  config ( OPENABLE path_config )
-    : name("")
-  {
-    using namespace std::string_literals;
-
-    convertor convert(path_config);
-
-    Nx = convert("Nx",135);
-    Nv = convert("Nv",256);
-
-    Nz  = convert("Nz" ,27);
-    Nvx = convert("Nvx",16);
-    Nvy = convert("Nvy",16);
-    Nvz = convert("Nvz",27);
-
-    Tc = convert("Tc",0.01);
-    ui = convert("ui",3.4);
-    alpha = convert("alpha",0.2);
-
-    Tf = convert("Tf",10.0);
-    tol = convert("tol",1e-5);
-    output_dir = convert("output_dir","."s);
-  }
-  */
-  config( fs::path && );
+  config ( fs::path && );
 
   bool
   create_output_directory () const;
@@ -139,11 +113,11 @@ struct config {
 std::ostream &
 operator << ( std::ostream & , const config & );
 
-// temporary object to prepare export of data
-// just get a filename, a container and a function to write into file
 namespace monitoring
 {
 
+// temporary object to prepare export of data
+// just get a filename, a container and a function to write into file
 template < typename Container , typename Writer >
 struct data
 {
@@ -156,24 +130,29 @@ struct data
   { ; }
 };
 
+// for older version of `g++` without indication of type like `data<std::vector<double>>`
+// this function works like `std::make_pair`
 template < typename Container , typename Writer >
 data<Container,Writer>
 make_data ( fs::path && _file , const Container & _dat , Writer _writer ) {
   return data<Container,Writer>(std::move(_file),_dat,_writer);
 }
 
+// class to frequently push data in output files 
+// /!\ WARNING all containers to save needs to be of the same type
 template < typename Container >
 struct reactive_monitoring
 {
   std::ofstream file;
-  const Container * ptr_time;
-  std::vector<Container *> arr_data;
-  std::size_t index;
+  const Container * ptr_time; // pointer to column pointer
+  std::vector<Container *> arr_data; // vector of pointer to all contairers to save
+  std::size_t index; // index of the last data pushed (we can't save an iterator because iterator are illed when values are pushed)
 
   template < typename FileConstructible >
   reactive_monitoring ( FileConstructible && _file , const Container & _time , std::initializer_list<Container*> _arr_data )
     : file(std::move(_file)) , ptr_time(&_time) , arr_data(_arr_data.size()) , index(0)
   {
+    // copy pointer to each container in `arr_data`
     auto it = arr_data.begin();
     for ( auto ptr : _arr_data ) {
       *it = ptr;
@@ -182,9 +161,11 @@ struct reactive_monitoring
   }
   ~reactive_monitoring ()
   {
-    file.close();
+    file.close(); // don't forget to close the file
   }
 
+  // 'cause every time we push, I get this feeling...
+  // Every time a `reactive_monitoring` is `push` it print data since the last `index` value to the end of containers
   void
   push () {
     std::transform( std::begin(*ptr_time)+index , std::end(*ptr_time) ,
