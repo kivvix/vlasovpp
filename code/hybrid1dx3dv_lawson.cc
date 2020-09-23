@@ -86,10 +86,10 @@ main ( int argc , char const * argv[] )
     ofconfig.close();
   }
 
-  ublas::vector<double> vx(c.Nv,0.),vy(c.Nv,0.),vz(c.Nv,0.);
-  std::generate( vx.begin() , vx.end() , [&,k=0]() mutable {return (k++)*f.step.dvx+f.range.vx_min;} );
-  std::generate( vy.begin() , vy.end() , [&,k=0]() mutable {return (k++)*f.step.dvy+f.range.vy_min;} );
-  std::generate( vz.begin() , vz.end() , [&,k=0]() mutable {return (k++)*f.step.dvz+f.range.vz_min;} );
+  // ublas::vector<double> vx(c.Nv,0.),vy(c.Nv,0.),vz(c.Nv,0.);
+  // std::generate( vx.begin() , vx.end() , [&,k=0]() mutable {return (k++)*f.step.dvx+f.range.vx_min;} );
+  // std::generate( vy.begin() , vy.end() , [&,k=0]() mutable {return (k++)*f.step.dvy+f.range.vy_min;} );
+  // std::generate( vz.begin() , vz.end() , [&,k=0]() mutable {return (k++)*f.step.dvz+f.range.vz_min;} );
 
   ublas::vector<double> Kz(c.Nz); // beware, Nz need to be odd
   {
@@ -115,8 +115,10 @@ main ( int argc , char const * argv[] )
       for (std::size_t k_z=0u ; k_z<f.size(2) ; ++k_z ) {
         for (std::size_t i=0u ; i<f.size_x() ; ++i ) {
           f[k_x][k_y][k_z][i] = M1( Zi(i),Vkx(k_x),Vky(k_y),Vkz(k_z) );
+
           fvxz[k_y][k_z] += f[k_x][k_y][k_z][i]*f.step.dvx*f.step.dz;
           fvyz[k_x][k_z] += f[k_x][k_y][k_z][i]*f.step.dvy*f.step.dz;
+
         }
         fft::fft(f[k_x][k_y][k_z].begin(),f[k_x][k_y][k_z].end(),hf[k_x][k_y][k_z].begin());
       }
@@ -130,7 +132,7 @@ main ( int argc , char const * argv[] )
   ublas::vector<double> Bx(c.Nz,0.),By(c.Nz,0.);
   for ( auto i=0u ; i<c.Nz ; ++i ) {
     double z = f.range.z_min + f.step.dz*i;
-    Bx[i] = 1e-4 * std::sin(K*z);
+    Bx[i] = c.alpha * std::sin(K*z);
   }
 
 

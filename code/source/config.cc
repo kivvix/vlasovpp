@@ -82,6 +82,8 @@ config::create_output_directory () const
 std::ostream &
 operator << ( std::ostream & os , const config & c )
 {
+  if ( !c.name.empty() ) { os << "name " << c.name <<"\n"; }
+  
   os << "dt0 " << c.dt0 << "\n"
 
      << "Nx " << c.Nx << "\n"

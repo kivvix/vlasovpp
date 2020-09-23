@@ -79,10 +79,10 @@ main ( int argc , char const * argv[] )
     ofconfig.close();
   }
 
-  ublas::vector<double> vx(c.Nv,0.),vy(c.Nv,0.),vz(c.Nv,0.);
-  std::generate( vx.begin() , vx.end() , [&,k=0]() mutable {return (k++)*f.step.dvx+f.range.vx_min;} );
-  std::generate( vy.begin() , vy.end() , [&,k=0]() mutable {return (k++)*f.step.dvy+f.range.vy_min;} );
-  std::generate( vz.begin() , vz.end() , [&,k=0]() mutable {return (k++)*f.step.dvz+f.range.vz_min;} );
+  // ublas::vector<double> vx(c.Nv,0.),vy(c.Nv,0.),vz(c.Nv,0.);
+  // std::generate( vx.begin() , vx.end() , [&,k=0]() mutable {return (k++)*f.step.dvx+f.range.vx_min;} );
+  // std::generate( vy.begin() , vy.end() , [&,k=0]() mutable {return (k++)*f.step.dvy+f.range.vy_min;} );
+  // std::generate( vz.begin() , vz.end() , [&,k=0]() mutable {return (k++)*f.step.dvz+f.range.vz_min;} );
 
   ublas::vector<double> kx(c.Nx); // beware, Nx need to be odd
   {
@@ -164,60 +164,7 @@ main ( int argc , char const * argv[] )
   auto compute_cold_energy = [&]( const ublas::vector<double> & jx , const ublas::vector<double> & jy ) {
     return __compute_energy(jx,jy,f.step.dz);
   };
-/*
-  auto compute_electric_energy = [&]( const ublas::vector<double> & Ex , const ublas::vector<double> & Ey ) {
-    double electric_energy = 0.;
-    for ( auto i=0u ; i<f.size_x() ; ++i ) {
-      electric_energy += 0.5*( Ex[i]*Ex[i] + Ey[i]+Ey[i] )*f.step.dz;
-    }
-    return electric_energy;
-  };
-  auto compute_magnetic_energy = [&]( const ublas::vector<double> & Bx , const ublas::vector<double> & By ) {
-    double magnetic_energy = 0.;
-    for ( auto i=0u ; i<f.size_x() ; ++i ) {
-      magnetic_energy += 0.5*( Bx[i]*Bx[i] + By[i]+By[i] )*f.step.dz;
-    }
-    return magnetic_energy;
-  };
-  auto compute_cold_energy = [&]( const ublas::vector<double> & jx , const ublas::vector<double> & jy ) {
-    double cold_energy = 0.;
-    for ( auto i=0u ; i<f.size_x() ; ++i ) {
-      cold_energy += 0.5*( jx[i]*jx[i] + jy[i]+jy[i] )*f.step.dz;
-    }
-    return cold_energy;
-  };
-*/
-  /*
-  auto compute_total_energy = [&](
-            const ublas::vector<double> & jx , const ublas::vector<double> & jy ,
-            const ublas::vector<double> & Ex , const ublas::vector<double> & Ey ,
-            const ublas::vector<double> & Bx , const ublas::vector<double> & By ,
-            const complex_field<double,3> & hf
-          ) {
-    double H = 0.;
-    for ( auto i=0u ; i<f.size_x() ; ++i ) {
-      H += 0.5*( Ex[i]*Ex[i] + Ey[i]+Ey[i] )*f.step.dz;
-      H += 0.5*( Bx[i]*Bx[i] + By[i]+By[i] )*f.step.dz;
-      H += 0.5*( jx[i]*jx[i] + jy[i]+jy[i] )*f.step.dz;
-    }
 
-    ublas::vector<double> fvxvyvz(c.Nz,0.);
-    for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
-      double vx = k_x*f.step.dvx + f.range.vx_min;
-      for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
-        double vy = k_y*f.step.dvy + f.range.vy_min;
-        for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
-          double vz = k_z*f.step.dvz + f.range.vz_min;
-          fft::ifft( hf[k_x][k_y][k_z].begin() , hf[k_x][k_y][k_z].end() , fvxvyvz.begin() );
-          for ( auto i=0u ; i<c.Nz ; ++i ) {
-            H += 0.5*( vx*vx + vy*vy + vz*vz )*fvxvyvz[i]*f.step.dz*f.volumeV();
-          }
-        }
-      }
-    }
-    return H;
-  };
-  */
   auto compute_mass_kinetic_energy = [&](const complex_field<double,3> & hf) {
     double kinetic_energy = 0.;
     double mass = 0.;
@@ -240,9 +187,7 @@ main ( int argc , char const * argv[] )
   };
 
   double m, ek;
-  //eex = compute_electric_energy(Ex); eey = compute_electric_energy(Ey);
-  //electric_energy_x.push_back(std::sqrt(eex));
-  //electric_energy_y.push_back(std::sqrt(eey));
+
   electric_energy.push_back(compute_electric_energy(Ex,Ey));
   magnetic_energy.push_back(compute_magnetic_energy(Bx,By));
   cold_energy.push_back(compute_cold_energy(jcx,jcy));
