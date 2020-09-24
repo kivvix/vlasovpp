@@ -272,9 +272,9 @@ main ( int argc , char const * argv[] )
               double velocity_vx = Ex[i] + v_y*B0 - v_z*By[i];
               double velocity_vy = Ey[i] - v_x*B0 + v_z*Bx[i];
               double velocity_vz = v_x*By[i] - v_y*Bx[i];
-              dvf[k_x][k_y][k_z][i] = - weno3d::weno_vx(velocity_vx,f,k_x,k_y,k_z,i)
-                                      - weno3d::weno_vy(velocity_vy,f,k_x,k_y,k_z,i)
-                                      - weno3d::weno_vz(velocity_vz,f,k_x,k_y,k_z,i);
+              dvf[k_x][k_y][k_z][i] = + weno3d::weno_vx(velocity_vx,f,k_x,k_y,k_z,i)
+                                      + weno3d::weno_vy(velocity_vy,f,k_x,k_y,k_z,i)
+                                      + weno3d::weno_vz(velocity_vz,f,k_x,k_y,k_z,i);
             }
           }
         }
@@ -357,9 +357,9 @@ main ( int argc , char const * argv[] )
               double velocity_vx = Ex[i] + v_y*B0 - v_z*By[i];
               double velocity_vy = Ey[i] - v_x*B0 + v_z*Bx[i];
               double velocity_vz = v_x*By[i] - v_y*Bx[i];
-              dvf[k_x][k_y][k_z][i] = - weno3d::weno_vx(velocity_vx,f,k_x,k_y,k_z,i)
-                                      - weno3d::weno_vy(velocity_vy,f,k_x,k_y,k_z,i)
-                                      - weno3d::weno_vz(velocity_vz,f,k_x,k_y,k_z,i);
+              dvf[k_x][k_y][k_z][i] = + weno3d::weno_vx(velocity_vx,f,k_x,k_y,k_z,i)
+                                      + weno3d::weno_vy(velocity_vy,f,k_x,k_y,k_z,i)
+                                      + weno3d::weno_vz(velocity_vz,f,k_x,k_y,k_z,i);
             }
           }
         }
@@ -449,9 +449,9 @@ main ( int argc , char const * argv[] )
               double velocity_vx = Ex[i] + v_y*B0 - v_z*By[i];
               double velocity_vy = Ey[i] - v_x*B0 + v_z*Bx[i];
               double velocity_vz = v_x*By[i] - v_y*Bx[i];
-              dvf[k_x][k_y][k_z][i] = - weno3d::weno_vx(velocity_vx,f,k_x,k_y,k_z,i)
-                                      - weno3d::weno_vy(velocity_vy,f,k_x,k_y,k_z,i)
-                                      - weno3d::weno_vz(velocity_vz,f,k_x,k_y,k_z,i);
+              dvf[k_x][k_y][k_z][i] = + weno3d::weno_vx(velocity_vx,f,k_x,k_y,k_z,i)
+                                      + weno3d::weno_vy(velocity_vy,f,k_x,k_y,k_z,i)
+                                      + weno3d::weno_vz(velocity_vz,f,k_x,k_y,k_z,i);
             }
           }
         }
