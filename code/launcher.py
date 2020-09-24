@@ -90,18 +90,21 @@ configs = [
           #simu_config_1dz3dv(**default_1dz3dv(v_par=0.2,v_perp=0.6,nh=0.2,alpha=1e-4,output_dir="runs/test1.1")),
           #simu_config_1dz3dv(**default_1dz3dv(v_par=0.2,v_perp=0.6,nh=0.1,alpha=1e-4,output_dir="runs/test1.2")),
           #simu_config_1dz3dv(**default_1dz3dv(v_par=0.2,v_perp=0.53,nh=0.24,alpha=1e-4,output_dir="runs/test2")),
-          simu_config_1dz3dv(**default_1dz3dv(dt0=0.01,K=2.0,output_dir="runs/test3.1")),
-          simu_config_1dz3dv(**default_1dz3dv(dt0=0.01,K=3.0,output_dir="runs/test3.2")),
-          simu_config_1dz3dv(**default_1dz3dv(dt0=0.01,K=1.5,output_dir="runs/test3.3")),
+          #simu_config_1dz3dv(**default_1dz3dv(dt0=0.01,K=2.0,output_dir="runs/test3.1")),
+          #simu_config_1dz3dv(**default_1dz3dv(dt0=0.01,K=3.0,output_dir="runs/test3.2")),
+          #simu_config_1dz3dv(**default_1dz3dv(dt0=0.01,K=1.5,output_dir="runs/test3.3")),
+          simu_config_1dz3dv(**default_1dz3dv(dt0=0.05,Nz=15,Nvx=20,Nvy=20,Nvz=21,v_par=0.2,v_perp=0.6,nh=0.2,alpha=1e-4,output_dir="runs/test11.1"))
         ]
+simu_exe = ["./hybrid1dx3dv.out","./hybrid1dx3dv_lawson.out"]
 process = []
 for c in configs:
   print(">--")
   print(" ".join([ "{} {}".format(k,v) for (k,v) in c.__dict__.items() ]))
   c.write("config.init")
-  process.append(subprocess.Popen("./hybrid1dx3dv.out config.init".split(),shell=True))
-  time.sleep(0.5)
-
+  for simu in simu_exe:
+    process.append(subprocess.Popen([simu,"config.init"],shell=True))
+    time.sleep(0.5)
+  time.sleep(1.0)
 
 print("wait process...")
 for p in process:
