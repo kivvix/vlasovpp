@@ -145,6 +145,10 @@ main ( int argc , char const * argv[] )
   std::vector<double> magnetic_energy; magnetic_energy.reserve(100);
   std::vector<double> cold_energy;     cold_energy.reserve(100);
   std::vector<double> mass;            mass.reserve(100);
+  std::vector<double> Exmax;           Exmax.reserve(100);
+  std::vector<double> Eymax;           Eymax.reserve(100);
+  std::vector<double> Bxmax;           Bxmax.reserve(100);
+  std::vector<double> Bymax;           Bymax.reserve(100);
 
   hybird1dx3dv<double> Lie( f , f.range.len_z() , B0 );
   double current_t = 0.;
@@ -194,7 +198,12 @@ main ( int argc , char const * argv[] )
   std::tie(m,ek) = compute_mass_kinetic_energy(hf);
   kinetic_energy.push_back(ek);
   mass.push_back(m);
-  monitoring::reactive_monitoring<std::vector<double>> moni( c.output_dir/("energy_"s + c.name + ".dat"s) , times , {&electric_energy,&magnetic_energy,&cold_energy,&kinetic_energy} );
+  Exmax.push_back(*std::max_element(Ex.begin(),Ex.end()));
+  Eymax.push_back(*std::max_element(Ey.begin(),Ey.end()));
+  Bxmax.push_back(*std::max_element(Bx.begin(),Bx.end()));
+  Bymax.push_back(*std::max_element(By.begin(),By.end()));
+  
+  monitoring::reactive_monitoring<std::vector<double>> moni( c.output_dir/("energy_"s + c.name + ".dat"s) , times , {&electric_energy,&magnetic_energy,&cold_energy,&kinetic_energy,&mass,&Exmax,&Eymax,&Bxmax,&Bymax} );
 
   //total_energy.push_back( compute_total_energy(jcx,jcy,Ex,Ey,Bx,By,hf) );
 
@@ -213,6 +222,10 @@ main ( int argc , char const * argv[] )
     std::tie(m,ek) = compute_mass_kinetic_energy(hf);
     kinetic_energy.push_back(ek);
     mass.push_back(m);
+    Exmax.push_back(*std::max_element(Ex.begin(),Ex.end()));
+    Eymax.push_back(*std::max_element(Ey.begin(),Ey.end()));
+    Bxmax.push_back(*std::max_element(Bx.begin(),Bx.end()));
+    Bymax.push_back(*std::max_element(By.begin(),By.end()));
 
     current_t += dt;
     times.push_back(current_t);
