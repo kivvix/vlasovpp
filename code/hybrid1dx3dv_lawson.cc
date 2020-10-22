@@ -60,7 +60,7 @@ main ( int argc , char const * argv[] )
   c.name = "vmhll";
 
   std::stringstream escape;
-  if ( argc > 2 ) { std::size_t line = std::soul(argv[2]); escape << "\033[" << line << ";0H"; }
+  if ( argc > 2 ) { std::size_t line = std::stoul(argv[2]); escape << "\033[" << line << ";0H"; }
   else { escape << "\r"; }
 
 /* ------------------------------------------------------------------------- */
