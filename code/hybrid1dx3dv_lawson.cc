@@ -11,6 +11,7 @@
 #include <tuple>
 #include <functional>
 #include <utility>
+#include <iomanip>
 
 using namespace std::string_literals;
 
@@ -57,6 +58,10 @@ main ( int argc , char const * argv[] )
   c.create_output_directory();
 
   c.name = "vmhll";
+
+  std::stringstream escape;
+  if ( argc > 2 ) { std::size_t line = std::soul(argv[2]); escape << "\033[" << line << ";0H"; }
+  else { escape << "\r"; }
 
 /* ------------------------------------------------------------------------- */
   field3d<double> f(boost::extents[c.Nvx][c.Nvy][c.Nvz][c.Nz]);
@@ -211,7 +216,7 @@ main ( int argc , char const * argv[] )
   fft::fft(By.begin(),By.end(),hBy.begin());
 
   while ( current_t<c.Tf ) {
-    std::cout << "\r" << current_t << " / " << c.Tf << std::flush;
+    std::cout << escape.str() << std::setw(8) << current_t << " / " << c.Tf << std::flush;
 
     /* Lawson(RK(3,3)) */
     // FIRST STAGE //////////////////////////////////////////////////

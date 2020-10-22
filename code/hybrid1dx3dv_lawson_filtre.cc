@@ -11,6 +11,7 @@
 #include <tuple>
 #include <functional>
 #include <utility>
+#include <iomanip>
 
 using namespace std::string_literals;
 
@@ -56,7 +57,11 @@ main ( int argc , char const * argv[] )
   auto c = config(p);
   c.create_output_directory();
 
-  c.name = "vmhll";
+  c.name = "vmhllf";
+
+  std::stringstream escape;
+  if ( argc > 2 ) { std::size_t line = std::soul(argv[2]); escape << "\033[" << line << ";0H"; }
+  else { escape << "\r"; }
 
 /* ------------------------------------------------------------------------- */
   field3d<double> f(boost::extents[c.Nvx][c.Nvy][c.Nvz][c.Nz]);
@@ -188,6 +193,13 @@ main ( int argc , char const * argv[] )
     }
     return std::make_pair(mass,kinetic_energy);
   };
+
+  auto max_abs = []( const ublas::vector<double> u ) {
+    return std::abs(*std::max_element(
+        u.begin() , u.end() ,
+        [](double a , double b){ return std::abs(a)<std::abs(b); }
+      ));
+  };
   
   double m, ek;
 
@@ -197,10 +209,10 @@ main ( int argc , char const * argv[] )
   std::tie(m,ek) = compute_mass_kinetic_energy(hf);
   kinetic_energy.push_back(ek);
   mass.push_back(m);
-  Exmax.push_back(*std::max_element(Ex.begin(),Ex.end()));
-  Eymax.push_back(*std::max_element(Ey.begin(),Ey.end()));
-  Bxmax.push_back(*std::max_element(Bx.begin(),Bx.end()));
-  Bymax.push_back(*std::max_element(By.begin(),By.end()));
+  Exmax.push_back( max_abs(Ex) );
+  Eymax.push_back( max_abs(Ey) );
+  Bxmax.push_back( max_abs(Bx) );
+  Bymax.push_back( max_abs(By) );
 
   monitoring::reactive_monitoring<std::vector<double>> moni( c.output_dir/("energy_"s + c.name + ".dat"s) , times , {&electric_energy,&magnetic_energy,&cold_energy,&kinetic_energy,&mass,&Exmax,&Eymax,&Bxmax,&Bymax} );
 
@@ -220,7 +232,7 @@ main ( int argc , char const * argv[] )
   fft::fft(By.begin(),By.end(),hBy.begin());
 
   while ( current_t<c.Tf ) {
-    std::cout << "\r" << current_t << " / " << c.Tf << std::flush;
+    std::cout << escape.str() << std::setw(8) << current_t << " / " << c.Tf << std::flush;
 
     /* Lawson(RK(3,3)) */
     // FIRST STAGE //////////////////////////////////////////////////
@@ -521,10 +533,10 @@ main ( int argc , char const * argv[] )
     std::tie(m,ek) = compute_mass_kinetic_energy(hf);
     kinetic_energy.push_back(ek);
     mass.push_back(m);
-    Exmax.push_back(*std::max_element(Ex.begin(),Ex.end()));
-    Eymax.push_back(*std::max_element(Ey.begin(),Ey.end()));
-    Bxmax.push_back(*std::max_element(Bx.begin(),Bx.end()));
-    Bymax.push_back(*std::max_element(By.begin(),By.end()));
+    Exmax.push_back( max_abs(Ex) );
+    Eymax.push_back( max_abs(Ey) );
+    Bxmax.push_back( max_abs(Bx) );
+    Bymax.push_back( max_abs(By) );
 
     current_t += dt;
     times.push_back(current_t);
