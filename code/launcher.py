@@ -93,11 +93,13 @@ configs = [
           #simu_config_1dz3dv(**default_1dz3dv(dt0=0.01,K=2.0,output_dir="runs/test3.1")),
           #simu_config_1dz3dv(**default_1dz3dv(dt0=0.01,K=3.0,output_dir="runs/test3.2")),
           #simu_config_1dz3dv(**default_1dz3dv(dt0=0.01,K=1.5,output_dir="runs/test3.3")),
-          simu_config_1dz3dv(**default_1dz3dv(dt0=0.05,Nz=15,Nvx=20,Nvy=20,Nvz=21,v_par=0.2,v_perp=0.6,nh=0.2,alpha=1e-4,output_dir="runs/test13.1"))
+          #simu_config_1dz3dv(**default_1dz3dv(dt0=0.05,Nz=15,Nvx=20,Nvy=20,Nvz=21,v_par=0.2,v_perp=0.6,nh=0.2,alpha=1e-4,output_dir="runs/test13.1")),
+          simu_config_1dz3dv(**default_1dz3dv(dt0=0.005,Nz=27,Nvx=32,Nvy=32,Nvz=33,v_par=0.2,v_perp=0.6,nh=0.4,alpha=1e-4,output_dir="runs/B0_0p1")),
         ]
-simus = ["hybrid1dx3dv.out","hybrid1dx3dv_lawson_filtre.out"]
+simus = ["hybrid1dx3dv.out","hybrid1dx3dv_lawson.out","hybrid1dx3dv_lawson_filtre.out"]
 process = []
 # be sure to compile simulation project
+print("\033[2J")
 make = subprocess.Popen(["make","mrproper"]+simus)
 make.wait()
 # and launch all simulations in configs
@@ -106,12 +108,12 @@ for c in configs:
   print(">--")
   print(" ".join([ "{} {}".format(k,v) for (k,v) in c.__dict__.items() ]))
   c.write("config.init")
-  for simu in simus:
-    process.append(subprocess.Popen(["./"+simu,"config.init"],shell=True))
+  for i,simu in enumerate(simus):
+    process.append(subprocess.Popen(["./"+simu,"config.init",25+i],shell=True))
     time.sleep(0.5)
   time.sleep(1.0)
 
-print("wait process...")
+print("\033["+str(25+len(simus)+2)+";H0 ...wait process...")
 for p in process:
   p.wait()
-print(u"\n\n\033[7;49;32m** finish **\033[0m\n")
+print("\033["+str(25+len(simus)+3)+u";H0\033[7;49;32m** finish **\033[0m\n")
