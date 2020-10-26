@@ -59,9 +59,9 @@ main ( int argc , char const * argv[] )
 
   c.name = "vmhls";
 
-  std::stringstream escape;
-  if ( argc > 2 ) { std::size_t line = std::stoul(argv[2]); escape << "\033[" << line << ";0H"; }
-  else { escape << "\r"; }
+  std::string escape;
+  if ( argc > 2 ) { std::size_t line = std::stoul(argv[2]); std::stringstream sescape; sescape << "\033[" << line << ";0H"; escape = sescape.str(); }
+  else { escape = "\r"; }
 
 /* ------------------------------------------------------------------------- */
   field3d<double> f(boost::extents[c.Nvx][c.Nvy][c.Nvz][c.Nz]);
@@ -220,7 +220,7 @@ main ( int argc , char const * argv[] )
   //total_energy.push_back( compute_total_energy(jcx,jcy,Ex,Ey,Bx,By,hf) );
 
   while ( current_t<c.Tf ) {
-    std::cout << escape.str() << std::setw(8) << current_t << " / " << c.Tf << std::flush;
+    std::cout << escape << std::setw(8) << current_t << " / " << c.Tf << std::flush;
 
 
     Lie.H_E(dt,jcx,jcy,Ex,Ey,Bx,By,hf);

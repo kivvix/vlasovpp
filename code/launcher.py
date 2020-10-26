@@ -98,8 +98,10 @@ configs = [
         ]
 simus = ["hybrid1dx3dv.out","hybrid1dx3dv_lawson.out","hybrid1dx3dv_lawson_filtre.out"]
 process = []
+
+#print("\033[2J\033[1;0H")
+
 # be sure to compile simulation project
-print("\033[2J")
 make = subprocess.Popen(["make","mrproper"]+simus)
 make.wait()
 # and launch all simulations in configs
@@ -109,11 +111,13 @@ for c in configs:
   print(" ".join([ "{} {}".format(k,v) for (k,v) in c.__dict__.items() ]))
   c.write("config.init")
   for i,simu in enumerate(simus):
-    process.append(subprocess.Popen(["./"+simu,"config.init",25+i],shell=True))
+    cmd = ["./"+simu,"config.init"] #,str(25+i)]
+    process.append(subprocess.Popen(cmd,shell=True))
     time.sleep(0.5)
   time.sleep(1.0)
 
-print("\033["+str(25+len(simus)+2)+";H0 ...wait process...")
+print("...wait process...")
 for p in process:
   p.wait()
-print("\033["+str(25+len(simus)+3)+u";H0\033[7;49;32m** finish **\033[0m\n")
+print(u"\033[7;49;32m** finish **\033[0m\n")
+#print("\033["+str(25+len(simus)+3)+u";H0\033[7;49;32m** finish **\033[0m\n")
