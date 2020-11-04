@@ -70,7 +70,7 @@ main ( int argc , char const * argv[] )
   const double K = c.K;
   f.range.vx_min = -3.6; f.range.vx_max = 3.6;
   f.range.vy_min = -3.6; f.range.vy_max = 3.6;
-  f.range.vz_min = -1.2; f.range.vz_max = 1.2;
+  f.range.vz_min = -2.0; f.range.vz_max = 2.0;
   f.range.z_min =  0.;  f.range.z_max = 2.*math::pi<double>()/K;
   f.compute_steps();
   const double v_par  = c.v_par;
