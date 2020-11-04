@@ -99,7 +99,7 @@ main ( int argc , char const * argv[] )
   ublas::vector<double> Kz(c.Nz); // beware, Nz need to be odd
   {
     double l = f.range.len_z();
-    for ( auto i=0u ; i<c.Nz/2 ; ++i ) { Kz[i]      = 2.*math::pi<double>()*i/l; }
+    for ( auto i=0u ; i<c.Nz/2 ; ++i ) { Kz[i]     = 2.*math::pi<double>()*i/l; }
     for ( int i=-c.Nz/2 ; i<0 ; ++i ) { Kz[c.Nz+i] = 2.*math::pi<double>()*i/l; }
   }
 
@@ -154,6 +154,39 @@ main ( int argc , char const * argv[] )
   std::vector<double> Eymax;           Eymax.reserve(100);
   std::vector<double> Bxmax;           Bxmax.reserve(100);
   std::vector<double> Bymax;           Bymax.reserve(100);
+
+  ublas::vector<double> fdvxdvydz(c.Nvz,0.);
+  ublas::vector<double> vzfdv(c.Nz,0.);
+
+  auto compute_integrals = [&]( const complex_field<double,3> & hf ) {
+    ublas::vector<double> fdvxdvydz(c.Nvz,0.);
+    ublas::vector<double> vzfdv(c.Nz,0.);
+
+    for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
+      double vx = k_x*f.step.dvx + f.range.vx_min;
+      for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
+        double vy = k_y*f.step.dvy + f.range.vy_min;
+        for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
+          double vz = k_z*f.step.dvz + f.range.vz_min;
+          fft::ifft( hf[k_x][k_y][k_z].begin() , hf[k_x][k_y][k_z].end() , fvxvyvz.begin() );
+          for ( auto i=0u ; i<c.Nz ; ++i ) {
+            fdvxdvydz[k_z] += fvxvyvz[i]*f.step.dz*f.step.dvx*f.step.dvy;
+            vzfdv[i] += vz*fvxvyvz[i]*f.volumeV();
+          }
+        }
+      }
+    }
+
+    return std::make_pair(fdvxdvydz,vzfdv);
+  };
+  auto printer__vz_y = [&,count=0] (auto const& y) mutable {
+    std::stringstream ss; ss<<(count++)*f.step.dvz + f.range.vz_min<<" "<<y;
+    return ss.str();
+  };
+  auto printer__z_y = [&,count=0] (auto const& y) mutable {
+    std::stringstream ss; ss<<(count++)*f.step.dz + f.range.z_min<<" "<<y;
+    return ss.str();
+  };
 
   double current_t = 0.;
   times.push_back(0.);
@@ -231,8 +264,9 @@ main ( int argc , char const * argv[] )
   fft::fft(Bx.begin(),Bx.end(),hBx.begin());
   fft::fft(By.begin(),By.end(),hBy.begin());
 
+  std::size_t iteration_t = 0;
   while ( current_t<c.Tf ) {
-    std::cout << escape << std::setw(8) << current_t << " / " << c.Tf << std::flush;
+    std::cout << escape << std::setw(8) << current_t << " / " << c.Tf << " [" << iteration_t << "]" << std::flush;
 
     /* Lawson(RK(3,3)) */
     // FIRST STAGE //////////////////////////////////////////////////
@@ -538,6 +572,16 @@ main ( int argc , char const * argv[] )
     Bxmax.push_back( max_abs(Bx) );
     Bymax.push_back( max_abs(By) );
 
+    if ( iteration_t % 1000 == 0 ) {
+      std::tie(fdvxdvydz,vzfdv) = compute_integrals( hf );
+      std::stringstream filename; filename << "fdvxdvydz_" << c.name << "_" << iteration_t << ".dat";
+      c << monitoring::make_data( filename.str() , fdvxdvydz , printer__vz_y );
+      filename.clear();
+      std::stringstream filename; filename << "vzfdv_" << c.name << "_" << iteration_t << ".dat";
+      c << monitoring::make_data( filename.str() , vzfdv     , printer__z_y );
+    }
+
+    ++iteration_t;
     current_t += dt;
     times.push_back(current_t);
     moni.push();
