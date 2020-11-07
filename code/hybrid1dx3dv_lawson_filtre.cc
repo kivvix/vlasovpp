@@ -286,8 +286,8 @@ main ( int argc , char const * argv[] )
               //hjhx[i] += v_x*hf[k_x][k_y][k_z][i]*f.volumeV();
               //hjhy[i] += v_y*hf[k_x][k_y][k_z][i]*f.volumeV();
 
-              hjhx[i] += ( w_1*c_ - w_2*s_ )*hf[k_x][k_y][k_z][i]*f.volumeV();
-              hjhy[i] += ( w_1*s_ + w_2*c_ )*hf[k_x][k_y][k_z][i]*f.volumeV();
+              hjhx[i] += 0.;//( w_1*c_ - w_2*s_ )*hf[k_x][k_y][k_z][i]*f.volumeV();
+              hjhy[i] += 0.;//( w_1*s_ + w_2*c_ )*hf[k_x][k_y][k_z][i]*f.volumeV();
             }
           }
         }
@@ -378,8 +378,8 @@ main ( int argc , char const * argv[] )
               //hjhx[i] += v_x*hf[k_x][k_y][k_z][i]*f.volumeV();
               //hjhy[i] += v_y*hf[k_x][k_y][k_z][i]*f.volumeV();
 
-              hjhx[i] += ( w_1*c_ - w_2*s_ )*hf[k_x][k_y][k_z][i]*f.volumeV();
-              hjhy[i] += ( w_1*s_ + w_2*c_ )*hf[k_x][k_y][k_z][i]*f.volumeV();
+              hjhx[i] += 0.;//( w_1*c_ - w_2*s_ )*hf[k_x][k_y][k_z][i]*f.volumeV();
+              hjhy[i] += 0.;//( w_1*s_ + w_2*c_ )*hf[k_x][k_y][k_z][i]*f.volumeV();
             }
           }
         }
@@ -471,8 +471,8 @@ main ( int argc , char const * argv[] )
               //hjhx[i] += v_x*hf[k_x][k_y][k_z][i]*f.volumeV();
               //hjhy[i] += v_y*hf[k_x][k_y][k_z][i]*f.volumeV();
 
-              hjhx[i] += ( w_1*c_ - w_2*s_ )*hf[k_x][k_y][k_z][i]*f.volumeV();
-              hjhy[i] += ( w_1*s_ + w_2*c_ )*hf[k_x][k_y][k_z][i]*f.volumeV();
+              hjhx[i] += 0.;//( w_1*c_ - w_2*s_ )*hf[k_x][k_y][k_z][i]*f.volumeV();
+              hjhy[i] += 0.;//( w_1*s_ + w_2*c_ )*hf[k_x][k_y][k_z][i]*f.volumeV();
             }
           }
         }
@@ -576,7 +576,7 @@ main ( int argc , char const * argv[] )
       std::tie(fdvxdvydz,vzfdv) = compute_integrals( hf );
       std::stringstream filename; filename << "fdvxdvydz_" << c.name << "_" << iteration_t << ".dat";
       c << monitoring::make_data( filename.str() , fdvxdvydz , printer__vz_y );
-      filename.clear();
+      filename.str("");
       std::stringstream filename; filename << "vzfdv_" << c.name << "_" << iteration_t << ".dat";
       c << monitoring::make_data( filename.str() , vzfdv     , printer__z_y );
     }

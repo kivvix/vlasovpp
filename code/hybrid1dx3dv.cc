@@ -277,7 +277,7 @@ main ( int argc , char const * argv[] )
       std::tie(fdvxdvydz,vzfdv) = compute_integrals( hf );
       std::stringstream filename; filename << "fdvxdvydz_" << c.name << "_" << iteration_t << ".dat";
       c << monitoring::make_data( filename.str() , fdvxdvydz , printer__vz_y );
-      filename.clear();
+      filename.str("");
       std::stringstream filename; filename << "vzfdv_" << c.name << "_" << iteration_t << ".dat";
       c << monitoring::make_data( filename.str() , vzfdv     , printer__z_y );
     }
