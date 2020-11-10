@@ -162,6 +162,8 @@ main ( int argc , char const * argv[] )
     ublas::vector<double> fdvxdvydz(c.Nvz,0.);
     ublas::vector<double> vzfdv(c.Nz,0.);
 
+    ublas::vector<double> fvxvyvz(c.Nz,0.);
+
     for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
       double vx = k_x*f.step.dvx + f.range.vx_min;
       for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
@@ -264,6 +266,13 @@ main ( int argc , char const * argv[] )
   fft::fft(Bx.begin(),Bx.end(),hBx.begin());
   fft::fft(By.begin(),By.end(),hBy.begin());
 
+  #define _hjfx(hf) ( w_1*c_ - w_2*s_ )*hf[k_x][k_y][k_z][i]*f.volumeV()
+  #define _hjfy(hf) ( w_1*s_ + w_2*c_ )*hf[k_x][k_y][k_z][i]*f.volumeV()
+  #define _velocity_vx(Ex,Ey,Bx,By)  Ex[i]*c_ + Ey[i]*s_ + v_z*Bx[i]*s_ - v_z*By[i]*c_
+  #define _velocity_vy(Ex,Ey,Bx,By) -Ex[i]*s_ + Ey[i]*c_ + v_z*Bx[i]*c_ + v_z*By[i]*s_
+  #define _velocity_vz(Ex,Ey,Bx,By) -Bx[i]*( w_1*s_ + w_2*c_ ) + By[i]*( w_1*c_ - w_2*s_ )
+
+
   std::size_t iteration_t = 0;
   while ( current_t<c.Tf ) {
     std::cout << escape << std::setw(8) << current_t << " / " << c.Tf << " [" << iteration_t << "]" << std::flush;
@@ -286,8 +295,8 @@ main ( int argc , char const * argv[] )
               //hjhx[i] += v_x*hf[k_x][k_y][k_z][i]*f.volumeV();
               //hjhy[i] += v_y*hf[k_x][k_y][k_z][i]*f.volumeV();
 
-              hjhx[i] += 0.;//( w_1*c_ - w_2*s_ )*hf[k_x][k_y][k_z][i]*f.volumeV();
-              hjhy[i] += 0.;//( w_1*s_ + w_2*c_ )*hf[k_x][k_y][k_z][i]*f.volumeV();
+              hjhx[i] += _hjfx(hf);//( w_1*c_ - w_2*s_ )*hf[k_x][k_y][k_z][i]*f.volumeV();
+              hjhy[i] += _hjfy(hf);//( w_1*s_ + w_2*c_ )*hf[k_x][k_y][k_z][i]*f.volumeV();
             }
           }
         }
@@ -332,9 +341,9 @@ main ( int argc , char const * argv[] )
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
             double v_z = k_z*f.step.dvz + f.range.vz_min;
             for ( auto i=0u ; i<c.Nz ; ++i ) {
-              double velocity_vx =  Ex[i]*c_ + Ey[i]*s_ + v_z*Bx[i]*s_ - v_z*By[i]*c_; //Ex[i]*c_ + Ey[i]*s_ + v_z*Bx[i]*s_ + v_z*By[i]*c_;
-              double velocity_vy = -Ex[i]*s_ + Ey[i]*c_ + v_z*Bx[i]*c_ + v_z*By[i]*s_; //-Ex[i]*s_ + Ey[i]*c_ - v_z*Bx[i]*c_ + v_z*By[i]*s_;
-              double velocity_vz = -Bx[i]*( w_1*s_ + w_2*c_ ) + By[i]*( w_1*c_ - w_2*s_ ); //Bx[i]*( w_1*s_ + w_2*c_ ) - By[i]*( w_1*c_ - w_2*s_ );
+              double velocity_vx = _velocity_vx(Ex,Ey,Bx,By); // Ex[i]*c_ + Ey[i]*s_ + v_z*Bx[i]*s_ - v_z*By[i]*c_;
+              double velocity_vy = _velocity_vy(Ex,Ey,Bx,By); //-Ex[i]*s_ + Ey[i]*c_ + v_z*Bx[i]*c_ + v_z*By[i]*s_;
+              double velocity_vz = _velocity_vz(Ex,Ey,Bx,By); //-Bx[i]*( w_1*s_ + w_2*c_ ) + By[i]*( w_1*c_ - w_2*s_ );
               dvf[k_x][k_y][k_z][i] = + weno3d::weno_vx(velocity_vx,f,k_x,k_y,k_z,i)
                                       + weno3d::weno_vy(velocity_vy,f,k_x,k_y,k_z,i)
                                       + weno3d::weno_vz(velocity_vz,f,k_x,k_y,k_z,i);
@@ -378,8 +387,8 @@ main ( int argc , char const * argv[] )
               //hjhx[i] += v_x*hf[k_x][k_y][k_z][i]*f.volumeV();
               //hjhy[i] += v_y*hf[k_x][k_y][k_z][i]*f.volumeV();
 
-              hjhx[i] += 0.;//( w_1*c_ - w_2*s_ )*hf[k_x][k_y][k_z][i]*f.volumeV();
-              hjhy[i] += 0.;//( w_1*s_ + w_2*c_ )*hf[k_x][k_y][k_z][i]*f.volumeV();
+              hjhx[i] += _hjfx(hf1);;//( w_1*c_ - w_2*s_ )*hf[k_x][k_y][k_z][i]*f.volumeV();
+              hjhy[i] += _hjfy(hf1);;//( w_1*s_ + w_2*c_ )*hf[k_x][k_y][k_z][i]*f.volumeV();
             }
           }
         }
@@ -425,9 +434,9 @@ main ( int argc , char const * argv[] )
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
             double v_z = k_z*f.step.dvz + f.range.vz_min;
             for ( auto i=0u ; i<c.Nz ; ++i ) {
-              double velocity_vx =  Ex[i]*c_ + Ey[i]*s_ + v_z*Bx[i]*s_ - v_z*By[i]*c_; //Ex[i]*c_ + Ey[i]*s_ + v_z*Bx[i]*s_ + v_z*By[i]*c_;
-              double velocity_vy = -Ex[i]*s_ + Ey[i]*c_ + v_z*Bx[i]*c_ + v_z*By[i]*s_; //-Ex[i]*s_ + Ey[i]*c_ - v_z*Bx[i]*c_ + v_z*By[i]*s_;
-              double velocity_vz = -Bx[i]*( w_1*s_ + w_2*c_ ) + By[i]*( w_1*c_ - w_2*s_ ); //Bx[i]*( w_1*s_ + w_2*c_ ) - By[i]*( w_1*c_ - w_2*s_ );
+              double velocity_vx = _velocity_vx(Ex,Ey,Bx,By); // Ex[i]*c_ + Ey[i]*s_ + v_z*Bx[i]*s_ - v_z*By[i]*c_; //Ex[i]*c_ + Ey[i]*s_ + v_z*Bx[i]*s_ + v_z*By[i]*c_;
+              double velocity_vy = _velocity_vy(Ex,Ey,Bx,By); //-Ex[i]*s_ + Ey[i]*c_ + v_z*Bx[i]*c_ + v_z*By[i]*s_; //-Ex[i]*s_ + Ey[i]*c_ - v_z*Bx[i]*c_ + v_z*By[i]*s_;
+              double velocity_vz = _velocity_vz(Ex,Ey,Bx,By); //-Bx[i]*( w_1*s_ + w_2*c_ ) + By[i]*( w_1*c_ - w_2*s_ ); //Bx[i]*( w_1*s_ + w_2*c_ ) - By[i]*( w_1*c_ - w_2*s_ );
               dvf[k_x][k_y][k_z][i] = + weno3d::weno_vx(velocity_vx,f,k_x,k_y,k_z,i)
                                       + weno3d::weno_vy(velocity_vy,f,k_x,k_y,k_z,i)
                                       + weno3d::weno_vz(velocity_vz,f,k_x,k_y,k_z,i);
@@ -471,8 +480,8 @@ main ( int argc , char const * argv[] )
               //hjhx[i] += v_x*hf[k_x][k_y][k_z][i]*f.volumeV();
               //hjhy[i] += v_y*hf[k_x][k_y][k_z][i]*f.volumeV();
 
-              hjhx[i] += 0.;//( w_1*c_ - w_2*s_ )*hf[k_x][k_y][k_z][i]*f.volumeV();
-              hjhy[i] += 0.;//( w_1*s_ + w_2*c_ )*hf[k_x][k_y][k_z][i]*f.volumeV();
+              hjhx[i] += _hjfx(hf2);//( w_1*c_ - w_2*s_ )*hf[k_x][k_y][k_z][i]*f.volumeV();
+              hjhy[i] += _hjfy(hf2);//( w_1*s_ + w_2*c_ )*hf[k_x][k_y][k_z][i]*f.volumeV();
             }
           }
         }
@@ -525,9 +534,9 @@ main ( int argc , char const * argv[] )
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
             double v_z = k_z*f.step.dvz + f.range.vz_min;
             for ( auto i=0u ; i<c.Nz ; ++i ) {
-              double velocity_vx =  Ex[i]*c_ + Ey[i]*s_ + v_z*Bx[i]*s_ - v_z*By[i]*c_; //Ex[i]*c_ + Ey[i]*s_ + v_z*Bx[i]*s_ + v_z*By[i]*c_;
-              double velocity_vy = -Ex[i]*s_ + Ey[i]*c_ + v_z*Bx[i]*c_ + v_z*By[i]*s_; //-Ex[i]*s_ + Ey[i]*c_ - v_z*Bx[i]*c_ + v_z*By[i]*s_;
-              double velocity_vz = -Bx[i]*( w_1*s_ + w_2*c_ ) + By[i]*( w_1*c_ - w_2*s_ ); //Bx[i]*( w_1*s_ + w_2*c_ ) - By[i]*( w_1*c_ - w_2*s_ );
+              double velocity_vx = _velocity_vx(Ex,Ey,Bx,By); // Ex[i]*c_ + Ey[i]*s_ + v_z*Bx[i]*s_ - v_z*By[i]*c_; //Ex[i]*c_ + Ey[i]*s_ + v_z*Bx[i]*s_ + v_z*By[i]*c_;
+              double velocity_vy = _velocity_vy(Ex,Ey,Bx,By); //-Ex[i]*s_ + Ey[i]*c_ + v_z*Bx[i]*c_ + v_z*By[i]*s_; //-Ex[i]*s_ + Ey[i]*c_ - v_z*Bx[i]*c_ + v_z*By[i]*s_;
+              double velocity_vz = _velocity_vz(Ex,Ey,Bx,By); //-Bx[i]*( w_1*s_ + w_2*c_ ) + By[i]*( w_1*c_ - w_2*s_ ); //Bx[i]*( w_1*s_ + w_2*c_ ) - By[i]*( w_1*c_ - w_2*s_ );
               dvf[k_x][k_y][k_z][i] = + weno3d::weno_vx(velocity_vx,f,k_x,k_y,k_z,i)
                                       + weno3d::weno_vy(velocity_vy,f,k_x,k_y,k_z,i)
                                       + weno3d::weno_vz(velocity_vz,f,k_x,k_y,k_z,i);
@@ -577,7 +586,7 @@ main ( int argc , char const * argv[] )
       std::stringstream filename; filename << "fdvxdvydz_" << c.name << "_" << iteration_t << ".dat";
       c << monitoring::make_data( filename.str() , fdvxdvydz , printer__vz_y );
       filename.str("");
-      std::stringstream filename; filename << "vzfdv_" << c.name << "_" << iteration_t << ".dat";
+      filename << "vzfdv_" << c.name << "_" << iteration_t << ".dat";
       c << monitoring::make_data( filename.str() , vzfdv     , printer__z_y );
     }
 

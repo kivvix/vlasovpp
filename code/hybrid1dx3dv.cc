@@ -162,6 +162,8 @@ main ( int argc , char const * argv[] )
     ublas::vector<double> fdvxdvydz(c.Nvz,0.);
     ublas::vector<double> vzfdv(c.Nz,0.);
 
+    ublas::vector<double> fvxvyvz(c.Nz,0.);
+
     for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
       double vx = k_x*f.step.dvx + f.range.vx_min;
       for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
@@ -278,7 +280,7 @@ main ( int argc , char const * argv[] )
       std::stringstream filename; filename << "fdvxdvydz_" << c.name << "_" << iteration_t << ".dat";
       c << monitoring::make_data( filename.str() , fdvxdvydz , printer__vz_y );
       filename.str("");
-      std::stringstream filename; filename << "vzfdv_" << c.name << "_" << iteration_t << ".dat";
+      filename << "vzfdv_" << c.name << "_" << iteration_t << ".dat";
       c << monitoring::make_data( filename.str() , vzfdv     , printer__z_y );
     }
 
