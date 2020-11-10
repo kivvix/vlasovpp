@@ -251,13 +251,13 @@ main ( int argc , char const * argv[] )
 
   monitoring::reactive_monitoring<std::vector<double>> moni( c.output_dir/("energy_"s + c.name + ".dat"s) , times , {&electric_energy,&magnetic_energy,&cold_energy,&kinetic_energy,&mass,&Exmax,&Eymax,&Bxmax,&Bymax} );
 
-  ublas::vector<std::complex<double>> hjcx(c.Nz,0.), hjcx1(c.Nz,0.), hjcx2(c.Nz,0.),
-                                      hjcy(c.Nz,0.), hjcy1(c.Nz,0.), hjcy2(c.Nz,0.),
-                                      hEx(c.Nz,0.), hEx1(c.Nz,0.), hEx2(c.Nz,0.),
-                                      hEy(c.Nz,0.), hEy1(c.Nz,0.), hEy2(c.Nz,0.),
-                                      hBx(c.Nz,0.), hBx1(c.Nz,0.), hBx2(c.Nz,0.),
-                                      hBy(c.Nz,0.), hBy1(c.Nz,0.), hBy2(c.Nz,0.);
-  complex_field<double,3> hf1(boost::extents[c.Nvx][c.Nvy][c.Nvz][c.Nz]), hf2(boost::extents[c.Nvx][c.Nvy][c.Nvz][c.Nz]);
+  ublas::vector<std::complex<double>> hjcx(c.Nz,0.), hjcx1(c.Nz,0.), hjcx2(c.Nz,0.), hjcx3(c.Nz,0.),
+                                      hjcy(c.Nz,0.), hjcy1(c.Nz,0.), hjcy2(c.Nz,0.), hjcy3(c.Nz,0.),
+                                      hEx(c.Nz,0.), hEx1(c.Nz,0.), hEx2(c.Nz,0.), hEx3(c.Nz,0.),
+                                      hEy(c.Nz,0.), hEy1(c.Nz,0.), hEy2(c.Nz,0.), hEy3(c.Nz,0.),
+                                      hBx(c.Nz,0.), hBx1(c.Nz,0.), hBx2(c.Nz,0.), hBx3(c.Nz,0.),
+                                      hBy(c.Nz,0.), hBy1(c.Nz,0.), hBy2(c.Nz,0.), hBy3(c.Nz,0.);
+  complex_field<double,3> hf1(boost::extents[c.Nvx][c.Nvy][c.Nvz][c.Nz]), hf2(boost::extents[c.Nvx][c.Nvy][c.Nvz][c.Nz]), hf3(boost::extents[c.Nvx][c.Nvy][c.Nvz][c.Nz]);
   field3d<double> dvf(boost::extents[c.Nvx][c.Nvy][c.Nvz][c.Nz]);
   fft::fft(jcx.begin(),jcx.end(),hjcx.begin());
   fft::fft(jcy.begin(),jcy.end(),hjcy.begin());
