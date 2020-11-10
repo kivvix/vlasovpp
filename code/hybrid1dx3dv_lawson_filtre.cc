@@ -280,9 +280,10 @@ main ( int argc , char const * argv[] )
     /* Lawson(RK(3,3)) */
     // FIRST STAGE //////////////////////////////////////////////////
     {
+      double c_ = std::cos(B0*current_t), s_ = std::sin(B0*current_t);
+
       // compute $\int v_x \hat{f}\,\mathrm{d}v$ et $\int v_y \hat{f}\,\mathrm{d}v$
       ublas::vector<std::complex<double>> hjhx(c.Nz,0.0), hjhy(c.Nz,0.0);
-      double c_ = std::cos(B0*current_t), s_ = std::sin(B0*current_t);
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
         double v_x = k_x*f.step.dvx + f.range.vx_min;
         double w_1 = k_x*f.step.dvx + f.range.vx_min;
@@ -372,9 +373,10 @@ main ( int argc , char const * argv[] )
 
     // SECOND STAGE /////////////////////////////////////////////////
     {
+      double c_ = std::cos(B0*(current_t+dt)), s_ = std::sin(B0*(current_t+dt));
+
       // compute $\int v_x \hat{f}^{(1)}\,\mathrm{d}v$ et $\int v_y \hat{f}^{(1)}\,\mathrm{d}v$
       ublas::vector<std::complex<double>> hjhx(c.Nz,0.0), hjhy(c.Nz,0.0);
-      double c_ = std::cos(B0*(current_t+dt)), s_ = std::sin(B0*(current_t+dt));
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
         double v_x = k_x*f.step.dvx + f.range.vx_min;
         double w_1 = k_x*f.step.dvx + f.range.vx_min;
@@ -465,9 +467,10 @@ main ( int argc , char const * argv[] )
 
     // THRID STAGE //////////////////////////////////////////////////
     {
+      double c_ = std::cos(B0*(current_t+0.5*dt)), s_ = std::sin(B0*(current_t+0.5*dt));
+      
       // compute $\int v_x \hat{f}^{(2)}\,\mathrm{d}v$ et $\int v_y \hat{f}^{(2)}\,\mathrm{d}v$
       ublas::vector<std::complex<double>> hjhx(c.Nz,0.0), hjhy(c.Nz,0.0);
-      double c_ = std::cos(B0*(current_t+0.5*dt)), s_ = std::sin(B0*(current_t+0.5*dt));
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
         double v_x = k_x*f.step.dvx + f.range.vx_min;
         double w_1 = k_x*f.step.dvx + f.range.vx_min;
