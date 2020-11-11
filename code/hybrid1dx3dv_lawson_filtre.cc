@@ -68,8 +68,8 @@ main ( int argc , char const * argv[] )
   complex_field<double,3> hf(boost::extents[c.Nvx][c.Nvy][c.Nvz][c.Nz]);
 
   const double K = c.K;
-  f.range.vx_min = -3.6; f.range.vx_max = 3.6;
-  f.range.vy_min = -3.6; f.range.vy_max = 3.6;
+  f.range.vx_min = -4.0; f.range.vx_max = 4.0;
+  f.range.vy_min = -4.0; f.range.vy_max = 4.0;
   f.range.vz_min = -2.0; f.range.vz_max = 2.0;
   f.range.z_min =  0.;  f.range.z_max = 2.*math::pi<double>()/K;
   f.compute_steps();
@@ -468,7 +468,7 @@ main ( int argc , char const * argv[] )
     // THRID STAGE //////////////////////////////////////////////////
     {
       double c_ = std::cos(B0*(current_t+0.5*dt)), s_ = std::sin(B0*(current_t+0.5*dt));
-      
+
       // compute $\int v_x \hat{f}^{(2)}\,\mathrm{d}v$ et $\int v_y \hat{f}^{(2)}\,\mathrm{d}v$
       ublas::vector<std::complex<double>> hjhx(c.Nz,0.0), hjhy(c.Nz,0.0);
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {

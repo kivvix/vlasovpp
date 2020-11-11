@@ -1317,7 +1317,7 @@ struct hybird1dx3dv
                         _dvz , kstar*_dvz + _vz_min
                       );
             fout[k_x][k_y][k_z][i] = N(vstar);
-            jx[i] += 0.; //vx*fout[k_x][k_y][k_z][i]*_volumeV;
+            jx[i] += vx*fout[k_x][k_y][k_z][i]*_volumeV;
           }
         }
       }
@@ -1390,7 +1390,7 @@ struct hybird1dx3dv
                         _dvz , kstar*_dvz + _vz_min
                       );
             fout[k_x][k_y][k_z][i] = N(vstar);
-            jy[i] += 0.; //vy*fout[k_x][k_y][k_z][i]*_volumeV;
+            jy[i] += vy*fout[k_x][k_y][k_z][i]*_volumeV;
           }
         }
       }
