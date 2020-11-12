@@ -156,30 +156,36 @@ main ( int argc , char const * argv[] )
   std::vector<double> Bymax;           Bymax.reserve(100);
 
   ublas::vector<double> fdvxdvydz(c.Nvz,0.);
-  ublas::vector<double> vzfdv(c.Nz,0.);
+  ublas::vector<double> vxfdv(c.Nz,0.), vyfdv(c.Nz,0.), vzfdv(c.Nz,0.);
 
-  auto compute_integrals = [&]( const complex_field<double,3> & hf ) {
+  auto compute_integrals = [&]( const complex_field<double,3> & hf , double current_t ) {
     ublas::vector<double> fdvxdvydz(c.Nvz,0.);
+    ublas::vector<double> vxfdv(c.Nz,0.);
+    ublas::vector<double> vyfdv(c.Nz,0.);
     ublas::vector<double> vzfdv(c.Nz,0.);
 
     ublas::vector<double> fvxvyvz(c.Nz,0.);
 
+    double c_ = std::cos(B0*current_t), s_ = std::sin(B0*current_t);
+
     for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
-      double vx = k_x*f.step.dvx + f.range.vx_min;
+      double w_1 = k_x*f.step.dvx + f.range.vx_min;
       for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
-        double vy = k_y*f.step.dvy + f.range.vy_min;
+        double w_2 = k_y*f.step.dvy + f.range.vy_min;
         for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
           double vz = k_z*f.step.dvz + f.range.vz_min;
           fft::ifft( hf[k_x][k_y][k_z].begin() , hf[k_x][k_y][k_z].end() , fvxvyvz.begin() );
           for ( auto i=0u ; i<c.Nz ; ++i ) {
             fdvxdvydz[k_z] += fvxvyvz[i]*f.step.dz*f.step.dvx*f.step.dvy;
+            vxfdv[i] += ( w_1*c_ - w_2*s_ )*fvxvyvz[i]*f.volumeV();
+            vyfdv[i] += ( w_1*s_ + w_2*c_ )*fvxvyvz[i]*f.volumeV();
             vzfdv[i] += vz*fvxvyvz[i]*f.volumeV();
           }
         }
       }
     }
 
-    return std::make_pair(fdvxdvydz,vzfdv);
+    return std::make_tuple(fdvxdvydz,vxfdv,vyfdv,vzfdv);
   };
   auto printer__vz_y = [&,count=0] (auto const& y) mutable {
     std::stringstream ss; ss<<(count++)*f.step.dvz + f.range.vz_min<<" "<<y;
@@ -302,6 +308,8 @@ main ( int argc , char const * argv[] )
           }
         }
       }
+      hjhx[0] = 0.0;
+      hjhy[0] = 0.0;
 
       // compute hjcx1,hjcy1,hBx1,hBy1,hEx1,hEy1 (all spatial values)
       for ( auto i=0u ; i<c.Nz ; ++i ) {
@@ -395,6 +403,8 @@ main ( int argc , char const * argv[] )
           }
         }
       }
+      hjhx[0] = 0.0;
+      hjhy[0] = 0.0;
 
       // compute hjcx2,hjcy2,hBx2,hBy2,hEx2,hEy2 (all spatial values)
       for ( auto i=0u ; i<c.Nz ; ++i ) {
@@ -489,6 +499,8 @@ main ( int argc , char const * argv[] )
           }
         }
       }
+      hjhx[0] = 0.0;
+      hjhy[0] = 0.0;
 
       // update hjcx,hjcy,hBx,hBy,hEx,hEy (all spatial values)
       for ( auto i=0u ; i<c.Nz ; ++i ) {
@@ -585,12 +597,18 @@ main ( int argc , char const * argv[] )
     Bymax.push_back( max_abs(By) );
 
     if ( iteration_t % 1000 == 0 ) {
-      std::tie(fdvxdvydz,vzfdv) = compute_integrals( hf );
+      std::tie(fdvxdvydz,vxfdv,vyfdv,vzfdv) = compute_integrals( hf , current_t );
       std::stringstream filename; filename << "fdvxdvydz_" << c.name << "_" << iteration_t << ".dat";
       c << monitoring::make_data( filename.str() , fdvxdvydz , printer__vz_y );
       filename.str("");
-      filename << "vzfdv_" << c.name << "_" << iteration_t << ".dat";
-      c << monitoring::make_data( filename.str() , vzfdv     , printer__z_y );
+      filename; filename << "jhxyz_" << c.name << "_" << iteration_t << ".dat";
+
+      auto printer__z_jh = [&,count=0] (auto const& y) mutable {
+        std::stringstream ss; ss<<(count)*f.step.dz + f.range.z_min<<" "<<vxfdv[count]<<" "<<vyfdv[count]<<" "<<vzfdv[count];
+        ++count;
+        return ss.str();
+      };
+      c << monitoring::make_data( filename.str() , vxfdv , printer__z_jh );
     }
 
     ++iteration_t;
