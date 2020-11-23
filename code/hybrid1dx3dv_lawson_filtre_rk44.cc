@@ -132,7 +132,7 @@ main ( int argc , char const * argv[] )
   fvxz.write(c.output_dir/"fvxz_init.dat");
   fvyz.write(c.output_dir/"fvyz_init.dat");
 
-  const double B0 = 1.;
+  const double B0 = c.B0;
   ublas::vector<double> Ex(c.Nz,0.),Ey(c.Nz,0.);
   ublas::vector<double> Bx(c.Nz,0.),By(c.Nz,0.);
   for ( auto i=0u ; i<c.Nz ; ++i ) {

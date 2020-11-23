@@ -132,7 +132,7 @@ main ( int argc , char const * argv[] )
   fvxz.write(c.output_dir/"fvxz_init.dat");
   fvyz.write(c.output_dir/"fvyz_init.dat");
 
-  const double B0 = 1.;
+  const double B0 = c.B0;
   ublas::vector<double> Ex(c.Nz,0.),Ey(c.Nz,0.);
   ublas::vector<double> Bx(c.Nz,0.),By(c.Nz,0.);
   for ( auto i=0u ; i<c.Nz ; ++i ) {
@@ -157,6 +157,8 @@ main ( int argc , char const * argv[] )
 
   ublas::vector<double> fdvxdvydz(c.Nvz,0.);
   ublas::vector<double> vxfdv(c.Nz,0.), vyfdv(c.Nz,0.), vzfdv(c.Nz,0.);
+  ublas::vector<double> ec_perp(c.Nz,0.), ec_vz(c.Nz,0.);
+  ublas::vector<double> rho_h(c.Nz,0.);
 
   auto compute_integrals = [&]( const complex_field<double,3> & hf , double current_t ) {
     ublas::vector<double> fdvxdvydz(c.Nvz,0.);
@@ -187,6 +189,51 @@ main ( int argc , char const * argv[] )
 
     return std::make_tuple(fdvxdvydz,vxfdv,vyfdv,vzfdv);
   };
+  auto compute_local_kinetic_energy = [&]( const complex_field<double,3> & hf ) {
+    ublas::vector<double> ec_perp(c.Nz,0.);
+    ublas::vector<double> ec_vz(c.Nz,0.);
+
+    ublas::vector<double> fvxvyvz(c.Nz,0.);
+
+    for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
+      double w_1 = k_x*f.step.dvx + f.range.vx_min;
+      for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
+        double w_2 = k_y*f.step.dvy + f.range.vy_min;
+        for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
+          double vz = k_z*f.step.dvz + f.range.vz_min;
+          fft::ifft( hf[k_x][k_y][k_z].begin() , hf[k_x][k_y][k_z].end() , fvxvyvz.begin() );
+          for ( auto i=0u ; i<c.Nz ; ++i ) {
+            ec_perp[i] += (w_1*w_1 + w_2*w_2)*fvxvyvz[i]*f.volumeV();
+            ec_vz[i]   += (vz*vz)*fvxvyvz[i]*f.volumeV();
+          }
+        }
+      }
+    }
+
+    return std::make_tuple( ec_perp , ec_vz );
+  };
+  auto compute_rho_h = [&]( const complex_field<double,3> & hf ) {
+    ublas::vector<double> rho(c.Nz,0.);
+
+    ublas::vector<double> fvxvyvz(c.Nz,0.);
+
+    for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
+      double vx = k_x*f.step.dvx + f.range.vx_min;
+      for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
+        double vy = k_y*f.step.dvy + f.range.vy_min;
+        for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
+          double vz = k_z*f.step.dvz + f.range.vz_min;
+          fft::ifft( hf[k_x][k_y][k_z].begin() , hf[k_x][k_y][k_z].end() , fvxvyvz.begin() );
+          for ( auto i=0u ; i<c.Nz ; ++i ) {
+            rho[i] += fvxvyvz[i]*f.volumeV();
+          }
+        }
+      }
+    }
+
+    return rho;
+  };
+
   auto printer__vz_y = [&,count=0] (auto const& y) mutable {
     std::stringstream ss; ss<<(count++)*f.step.dvz + f.range.vz_min<<" "<<y;
     return ss.str();
@@ -325,6 +372,13 @@ main ( int argc , char const * argv[] )
         // ---
         hEy1[i] = 1.0*dt*(-1.*hjhx[i] + I*Kz[i]*hBy[i])*(0.621267812518167*std::sin(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.378732187481834*std::sin(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 1.0*dt*(I*Kz[i]*hBx[i] + hjhy[i])*(0.621267812518166*std::cos(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.378732187481833*std::cos(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 1.0*hEx[i]*(0.621267812518167*std::sin(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.378732187481834*std::sin(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 1.0*hEy[i]*(0.621267812518166*std::cos(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.378732187481833*std::cos(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 1.0*hjcx[i]*(0.242535625036333*std::cos(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.242535625036333*std::cos(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 1.0*hjcy[i]*(0.242535625036333*std::sin(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.242535625036333*std::sin(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)));
       }
+      hjcx1[0] = 0.0;
+      hjcy1[0] = 0.0;
+      hBx1[0] = 0.0;
+      hBy1[0] = 0.0;
+      hEx1[0] = 0.0;
+      hEy1[0] = 0.0;
+
 
       // compute hf1
 
@@ -421,6 +475,12 @@ main ( int argc , char const * argv[] )
         // ---
         hEy2[i] = -0.25*dt*(-1.*hjhx[i] + I*Kz[i]*hBy1[i])*(0.621267812518166*std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.378732187481834*std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 0.25*dt*(I*Kz[i]*hBx1[i] + hjhy[i])*(0.621267812518167*std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.378732187481834*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 1.0*hEx1[i]*(0.155316953129542*std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.0946830468704584*std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 1.0*hEx[i]*(0.465950859388625*std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.284049140611375*std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 1.0*hEy1[i]*(0.155316953129542*std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.0946830468704584*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 1.0*hEy[i]*(0.465950859388625*std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.284049140611375*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 0.0606339062590832*hjcx1[i]*(-1.*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)) + std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.))) - 1.0*hjcx[i]*(0.18190171877725*std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.18190171877725*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 0.0606339062590832*hjcy1[i]*(std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 1.0*hjcy[i]*(0.18190171877725*std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.18190171877725*std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)));
       }
+      hjcx2[0] = 0.0;
+      hjcy2[0] = 0.0;
+      hBx2[0] = 0.0;
+      hBy2[0] = 0.0;
+      hEx2[0] = 0.0;
+      hEy2[0] = 0.0;
 
       // compute hf2
 
@@ -524,6 +584,12 @@ main ( int argc , char const * argv[] )
           hEx[i] = hEx_tmp;
           hEy[i] = hEy_tmp;
       }
+      hjcx[0] = 0.0;
+      hjcy[0] = 0.0;
+      hBx[0] = 0.0;
+      hBy[0] = 0.0;
+      hEx[0] = 0.0;
+      hEy[0] = 0.0;
 
       // update hf
 
@@ -596,7 +662,13 @@ main ( int argc , char const * argv[] )
     Bxmax.push_back( max_abs(Bx) );
     Bymax.push_back( max_abs(By) );
 
-    if ( iteration_t % 1000 == 0 ) {
+    ++iteration_t;
+    current_t += dt;
+    times.push_back(current_t);
+    moni.push();
+
+    //if ( iteration_t % 1000 == 0 )
+    {
       std::tie(fdvxdvydz,vxfdv,vyfdv,vzfdv) = compute_integrals( hf , current_t );
       std::stringstream filename; filename << "fdvxdvydz_" << c.name << "_" << iteration_t << ".dat";
       c << monitoring::make_data( filename.str() , fdvxdvydz , printer__vz_y );
@@ -609,12 +681,32 @@ main ( int argc , char const * argv[] )
         return ss.str();
       };
       c << monitoring::make_data( filename.str() , vxfdv , printer__z_jh );
+
+      std::tie(ec_perp,ec_vz) = compute_local_kinetic_energy( hf );
+      filename.str("");
+      filename << "keh_"<< c.name << "_" << iteration_t << ".dat";
+      auto printer__z_ec = [&,count=0] (auto const& y) mutable {
+        std::stringstream ss; ss<<(count)*f.step.dz + f.range.z_min<<" "<<ec_perp[count]<<" "<<ec_vz[count];
+        ++count;
+        return ss.str();
+      };
+      c << monitoring::make_data( filename.str() , ec_perp , printer__z_ec );
+
+      rho_h = compute_rho_h( hf );
+      filename.str("");
+      filename << "rhoh_"<< c.name << "_" << iteration_t << ".dat";
+      c << monitoring::make_data( filename.str() , ec_perp , printer__z_y );
+
+      filename.str("");
+      filename << "EBxy_"<< c.name << "_" << iteration_t << ".dat";
+      auto printer__z_EBxy = [&,count=0] (auto const& y) mutable {
+        std::stringstream ss; ss<<(count)*f.step.dz + f.range.z_min<<" "<<Ex[count]<<" "<<Ey[count]<<" "<<Bx[count]<<" "<<By[count];
+        ++count;
+        return ss.str();
+      };
+      c << monitoring::make_data( filename.str() , Ex , printer__z_EBxy );
     }
 
-    ++iteration_t;
-    current_t += dt;
-    times.push_back(current_t);
-    moni.push();
   }
 
   auto writer_t_y = [&,count=0] (auto const& y) mutable {

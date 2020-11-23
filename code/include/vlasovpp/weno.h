@@ -293,6 +293,7 @@ namespace weno3d {
     auto fim12 = weno::local_flux(uim3,uim2,uim1,ui,uip1,uip2);
 
     return ( vp*(fip12.first - fim12.first) + vm*(fip12.second - fim12.second) )/dx;
+    //return ( vp*(ui-uim1) + vm*(uip1-ui) )/dx; //upwind
   }
 
   std::tuple<std::size_t,std::size_t,std::size_t,std::size_t,std::size_t,std::size_t,std::size_t>

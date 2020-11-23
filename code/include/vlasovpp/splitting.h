@@ -1250,7 +1250,7 @@ struct hybird1dx3dv
       double jcxn1 =  jcx[i]*std::cos(dt) - jcy[i]*std::sin(dt);
       double jcyn1 =  jcx[i]*std::sin(dt) + jcy[i]*std::cos(dt);
 
-      // (Ex,Ey)^{n+1} = (Ex,Ey)^n + J (exp(-J dt) - I) (jcx,jcy)^n
+      // (Ex,Ey)^{n+1} = (Ex,Ey)^n - J (exp(-J dt) - I) (jcx,jcy)^n
       Ex[i] += -jcx[i]*std::sin(dt)      + jcy[i]*(1.-std::cos(dt));
       Ey[i] +=  jcx[i]*(std::cos(dt)-1.) - jcy[i]*std::sin(dt);
 

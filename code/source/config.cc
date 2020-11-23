@@ -63,6 +63,8 @@ config::config( fs::path && path_config )
   Tc = convert("Tc",0.01);
   ui = convert("ui",3.4);
 
+  B0 = convert("B0",1.0);
+
   alpha = convert("alpha",0.2);
 
   nh     = convert("nh"    ,0.2);
@@ -96,6 +98,8 @@ operator << ( std::ostream & os , const config & c )
 
      << "Tc " << c.Tc << "\n"
      << "ui " << c.ui << "\n"
+
+     << "B0 " << c.B0 << "\n"
 
      << "alpha " << c.alpha << "\n"
 

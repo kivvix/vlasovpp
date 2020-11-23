@@ -96,6 +96,7 @@ struct config {
   double Tc;
   double Tf;
   double ui;
+  double B0;
   double alpha;
   double nh;
   double v_par,v_perp;
