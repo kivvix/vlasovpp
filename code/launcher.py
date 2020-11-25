@@ -18,7 +18,7 @@ class simu_config_1dx1dv:
       f.write("\n".join([ "{} {}".format(k,v) for (k,v) in self.__dict__.items() ]))
 
 class simu_config_1dz3dv:
-  def __init__ ( self , Nz , Nvx , Nvy , Nvz , dt0 , Tf , nh , v_par , v_perp , alpha , K , output_dir ):
+  def __init__ ( self , Nz , Nvx , Nvy , Nvz , dt0 , Tf , nh , v_par , v_perp , B0 , alpha , K , output_dir ):
     self.Nz = Nz
     self.Nvx = Nvx
     self.Nvy = Nvy
@@ -28,7 +28,8 @@ class simu_config_1dz3dv:
     self.nh  = nh
     self.v_par  = v_par
     self.v_perp = v_perp
-    self.alpha = alpha
+    self.B0     = B0
+    self.alpha  = alpha
     self.K = K
     self.output_dir = output_dir
 
@@ -70,7 +71,7 @@ configs.append(simu_config(Tc=1e-4,Nv=32000,Nx=135,Tf=10.0,output_dir="compare/t
 #  subprocess.run("./cmp_tb.out   config.init".split(),shell=True,check=True)
 #  subprocess.run("./cmp_vhll.out config.init".split(),shell=True,check=True)
 
-def default_1dz3dv(Nz=27,Nvx=56,Nvy=56,Nvz=57,dt0=0.05,Tf=200,nh=0.2,v_par=0.2,v_perp=0.6,alpha=1e-4,K=2.0,output_dir="result"):
+def default_1dz3dv(Nz=27,Nvx=56,Nvy=56,Nvz=57,dt0=0.05,Tf=200,nh=0.2,v_par=0.2,v_perp=0.6,B0=1,alpha=1e-4,K=2.0,output_dir="result"):
   return {
     'Nz' : Nz,
     'Nvx': Nvx,
@@ -81,25 +82,17 @@ def default_1dz3dv(Nz=27,Nvx=56,Nvy=56,Nvz=57,dt0=0.05,Tf=200,nh=0.2,v_par=0.2,v
     'nh' : nh,
     'v_par' : v_par,
     'v_perp': v_perp,
+    'B0' : B0,
     'alpha' : alpha,
     'K': K,
     'output_dir': output_dir
   }
 
 configs = [
-          #simu_config_1dz3dv(**default_1dz3dv(v_par=0.2,v_perp=0.6,nh=0.2,alpha=1e-4,output_dir="runs/test1.1")),
-          #simu_config_1dz3dv(**default_1dz3dv(v_par=0.2,v_perp=0.6,nh=0.1,alpha=1e-4,output_dir="runs/test1.2")),
-          #simu_config_1dz3dv(**default_1dz3dv(v_par=0.2,v_perp=0.53,nh=0.24,alpha=1e-4,output_dir="runs/test2")),
-          #simu_config_1dz3dv(**default_1dz3dv(dt0=0.01,K=2.0,output_dir="runs/test3.1")),
-          #simu_config_1dz3dv(**default_1dz3dv(dt0=0.01,K=3.0,output_dir="runs/test3.2")),
-          #simu_config_1dz3dv(**default_1dz3dv(dt0=0.01,K=1.5,output_dir="runs/test3.3")),
-          #simu_config_1dz3dv(**default_1dz3dv(dt0=0.05,Nz=15,Nvx=20,Nvy=20,Nvz=21,v_par=0.2,v_perp=0.6,nh=0.2,alpha=1e-4,output_dir="runs/test13.1")),
-          simu_config_1dz3dv(**default_1dz3dv(dt0=0.005,Nz=27,Nvx=32,Nvy=32,Nvz=33,v_par=0.2,v_perp=0.6,nh=0.4,alpha=1e-4,output_dir="runs/B0_0p1")),
+          simu_config_1dz3dv(**default_1dz3dv(dt0=0.05,Nz=27,Nvx=32,Nvy=32,Nvz=33,v_par=0.2,v_perp=0.6,nh=1.0,B0=0.0,alpha=0.2,output_dir="runs/VM")),
         ]
-simus = ["hybrid1dx3dv.out","hybrid1dx3dv_lawson.out","hybrid1dx3dv_lawson_filtre.out"]
+simus = ["hybrid1dx3dv.out","hybrid1dx3dv_lawson_filtre.out"]
 process = []
-
-#print("\033[2J\033[1;0H")
 
 # be sure to compile simulation project
 make = subprocess.Popen(["make","mrproper"]+simus)
@@ -111,7 +104,7 @@ for c in configs:
   print(" ".join([ "{} {}".format(k,v) for (k,v) in c.__dict__.items() ]))
   c.write("config.init")
   for i,simu in enumerate(simus):
-    cmd = ["./"+simu,"config.init"] #,str(25+i)]
+    cmd = ["./"+simu,"config.init"]
     process.append(subprocess.Popen(cmd,shell=True))
     time.sleep(0.5)
   time.sleep(1.0)
@@ -120,4 +113,3 @@ print("...wait process...")
 for p in process:
   p.wait()
 print(u"\033[7;49;32m** finish **\033[0m\n")
-#print("\033["+str(25+len(simus)+3)+u";H0\033[7;49;32m** finish **\033[0m\n")

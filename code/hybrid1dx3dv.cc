@@ -40,7 +40,6 @@ const std::complex<double> & I = std::complex<double>(0.,1.);
 #define Vky(k) (k*f.step.dvy+f.range.vy_min)
 #define Vkz(k) (k*f.step.dvz+f.range.vz_min)
 
-
 auto
 maxwellian ( double rho , std::vector<double> u , std::vector<double> T ) {
   return [=](double z,double vx,double vy,double vz) {
@@ -364,9 +363,9 @@ main ( int argc , char const * argv[] )
       c << monitoring::make_data( filename.str() , ec_perp , printer__z_y );
 
       filename.str("");
-      filename << "EBxy_"<< c.name << "_" << iteration_t << ".dat";
+      filename << "EBjxy_"<< c.name << "_" << iteration_t << ".dat";
       auto printer__z_EBxy = [&,count=0] (auto const& y) mutable {
-        std::stringstream ss; ss<<(count)*f.step.dz + f.range.z_min<<" "<<Ex[count]<<" "<<Ey[count]<<" "<<Bx[count]<<" "<<By[count];
+        std::stringstream ss; ss<<(count)*f.step.dz + f.range.z_min<<" "<<Ex[count]<<" "<<Ey[count]<<" "<<Bx[count]<<" "<<By[count]<<" "<<jcx[count]<<" "<<jcy[count];
         ++count;
         return ss.str();
       };

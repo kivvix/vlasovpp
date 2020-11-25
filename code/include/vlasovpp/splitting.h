@@ -1150,6 +1150,11 @@ struct hybird1dx3dv
     for ( auto i=0u ; i<_Nz ; ++i ) {
       jcx[i] += 4*dt*Ex[i];
       jcy[i] += 4*dt*Ey[i];
+
+      #if JC_condition == 0
+        jcx[i] = 0.;
+        jcy[i] = 0.;
+      #endif
     }
 
     // update f
@@ -1181,9 +1186,22 @@ struct hybird1dx3dv
     for ( auto i=0 ; i<_Nz ; ++i ) {
       hBx[i] = hBx[i] + dt*I*kz[i]*hEy[i];
       hBy[i] = hBy[i] - dt*I*kz[i]*hEx[i];
+
+      #if Bxy_condition == 0
+        hBx[i] = 0.;
+        hBy[i] = 0.;
+      #endif
     }
     hBx.ifft(Bx.begin());
     hBy.ifft(By.begin());
+
+
+    #if Bxy_condition == 0
+      for ( auto i=0 ; i<_Nz ; ++i ) {
+        Bx[i] = 0.;
+        By[i] = 0.;
+      }
+    #endif
   }
 
   void
@@ -1249,6 +1267,13 @@ struct hybird1dx3dv
       // (jcx,jcy)^{n+1} = exp(-J dt)*(jcx,jcy)^n
       double jcxn1 =  jcx[i]*std::cos(dt) - jcy[i]*std::sin(dt);
       double jcyn1 =  jcx[i]*std::sin(dt) + jcy[i]*std::cos(dt);
+
+      #if JC_condition == 0
+        jcxn1 = 0.;
+        jcyn1 = 0.;
+        jcx[i] = 0.;
+        jcy[i] = 0.;
+      #endif
 
       // (Ex,Ey)^{n+1} = (Ex,Ey)^n - J (exp(-J dt) - I) (jcx,jcy)^n
       Ex[i] += -jcx[i]*std::sin(dt)      + jcy[i]*(1.-std::cos(dt));

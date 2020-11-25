@@ -289,8 +289,13 @@ namespace weno3d {
     _T vp = std::max(velocity,0.);
     _T vm = std::min(velocity,0.);
 
-    auto fip12 = weno::local_flux(uim2,uim1,ui,uip1,uip2,uip3);
-    auto fim12 = weno::local_flux(uim3,uim2,uim1,ui,uip1,uip2);
+    #ifdef linearized_WENO
+      auto fip12 = wenolin::local_flux(uim2,uim1,ui,uip1,uip2,uip3);
+      auto fim12 = wenolin::local_flux(uim3,uim2,uim1,ui,uip1,uip2);
+    #else
+      auto fip12 = weno::local_flux(uim2,uim1,ui,uip1,uip2,uip3);
+      auto fim12 = weno::local_flux(uim3,uim2,uim1,ui,uip1,uip2);
+    #endif
 
     return ( vp*(fip12.first - fim12.first) + vm*(fip12.second - fim12.second) )/dx;
     //return ( vp*(ui-uim1) + vm*(uip1-ui) )/dx; //upwind

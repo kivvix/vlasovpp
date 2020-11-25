@@ -1,9 +1,11 @@
 # vlasovpp compilation
 PROJET = vlasovpp
 
-DEBUG_MODE ?= N
-
 include Makefile.config
+
+DEBUG_MODE ?= N
+JC_condition  ?= 1
+Bxy_condition ?= 1
 
 SRC_dir    = source
 HEADER_dir = include/$(PROJET)
@@ -51,9 +53,6 @@ LD = $(CXX) -fPIC -shared
 LDFLAGS = $(CFLAGS)
 
 ### BUILD RULES #######################################################
-bidon:
-	$(echo) $(UN)
-
 all : $(LIB_dir)/lib$(PROJET).so
 	@$(echo) "all your base are belong to us"
 	@$(echo) "Library build : \033[90mlib$(PROJET).so\033[0m"
@@ -97,5 +96,5 @@ coffee :
 
 %.out : %.cc $(LIB_dir)/lib$(PROJET).so $(INC)
 	@$(echo) "\033[95m$@\033[0m"
-	$(CXX) $(CFLAGS) $(DEBUGFLAGS) -g $< $(foreach inc,$(INCLUDES),-I $(inc)) -L $(LIB_dir) $(foreach lib,$(LIBS),-l$(lib)) -o $@
+	$(CXX) $(CFLAGS) $(DEBUGFLAGS) -g $< $(foreach inc,$(INCLUDES),-I $(inc)) -L $(LIB_dir) $(foreach lib,$(LIBS),-l$(lib)) -D JC_condition=$(JC_condition) -D Bxy_condition=$(Bxy_condition) -o $@
 	@$(echo) "\033[1mcompilation done\033[0m"

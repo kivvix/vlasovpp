@@ -29,7 +29,6 @@ using namespace std::string_literals;
 #include "vlasovpp/config.h"
 #include "vlasovpp/signal_handler.h"
 #include "vlasovpp/iteration.h"
-#include "vlasovpp/splitting.h"
 
 namespace math = boost::math::constants;
 const std::complex<double> & I = std::complex<double>(0.,1.);
@@ -39,7 +38,6 @@ const std::complex<double> & I = std::complex<double>(0.,1.);
 #define Vkx(k) (k*f.step.dvx+f.range.vx_min)
 #define Vky(k) (k*f.step.dvy+f.range.vy_min)
 #define Vkz(k) (k*f.step.dvz+f.range.vz_min)
-
 
 auto
 maxwellian ( double rho , std::vector<double> u , std::vector<double> T ) {
@@ -57,7 +55,7 @@ main ( int argc , char const * argv[] )
   auto c = config(p);
   c.create_output_directory();
 
-  c.name = "vmhllf";
+  c.name = "vmhllf_uw";
 
   std::string escape;
   if ( argc > 2 ) { std::size_t line = std::stoul(argv[2]); std::stringstream sescape; sescape << "\033[" << line << ";0H"; escape = sescape.str(); }
@@ -379,6 +377,19 @@ main ( int argc , char const * argv[] )
       hEx1[0] = 0.0;
       hEy1[0] = 0.0;
 
+      #if JC_condition == 0
+        for ( auto i=0u ; i<c.Nz ; ++i ) {
+          hjcx1[0] = 0.;
+          hjcy1[0] = 0.;
+        }
+      #endif
+      #if Bxy_condition == 0
+        for ( auto i=0u ; i<c.Nz ; ++i ) {
+          hBx1[0] = 0.;
+          hBy1[0] = 0.;
+        }
+      #endif
+
 
       // compute hf1
 
@@ -481,6 +492,19 @@ main ( int argc , char const * argv[] )
       hBy2[0] = 0.0;
       hEx2[0] = 0.0;
       hEy2[0] = 0.0;
+
+      #if JC_condition == 0
+        for ( auto i=0u ; i<c.Nz ; ++i ) {
+          hjcx2[0] = 0.;
+          hjcy2[0] = 0.;
+        }
+      #endif
+      #if Bxy_condition == 0
+        for ( auto i=0u ; i<c.Nz ; ++i ) {
+          hBx2[0] = 0.;
+          hBy2[0] = 0.;
+        }
+      #endif
 
       // compute hf2
 
@@ -591,6 +615,19 @@ main ( int argc , char const * argv[] )
       hEx[0] = 0.0;
       hEy[0] = 0.0;
 
+      #if JC_condition == 0
+        for ( auto i=0u ; i<c.Nz ; ++i ) {
+          hjcx[0] = 0.;
+          hjcy[0] = 0.;
+        }
+      #endif
+      #if Bxy_condition == 0
+        for ( auto i=0u ; i<c.Nz ; ++i ) {
+          hBx[0] = 0.;
+          hBy[0] = 0.;
+        }
+      #endif
+
       // update hf
 
       // compute iFFT(hf2)
@@ -698,9 +735,9 @@ main ( int argc , char const * argv[] )
       c << monitoring::make_data( filename.str() , ec_perp , printer__z_y );
 
       filename.str("");
-      filename << "EBxy_"<< c.name << "_" << iteration_t << ".dat";
+      filename << "EBjxy_"<< c.name << "_" << iteration_t << ".dat";
       auto printer__z_EBxy = [&,count=0] (auto const& y) mutable {
-        std::stringstream ss; ss<<(count)*f.step.dz + f.range.z_min<<" "<<Ex[count]<<" "<<Ey[count]<<" "<<Bx[count]<<" "<<By[count];
+        std::stringstream ss; ss<<(count)*f.step.dz + f.range.z_min<<" "<<Ex[count]<<" "<<Ey[count]<<" "<<Bx[count]<<" "<<By[count]<<" "<<jcx[count]<<" "<<jcy[count];
         ++count;
         return ss.str();
       };
