@@ -153,6 +153,10 @@ main ( int argc , char const * argv[] )
   std::vector<double> Bxmax;           Bxmax.reserve(100);
   std::vector<double> Bymax;           Bymax.reserve(100);
 
+  std::vector<double> velocitiy_vx_max;  velocitiy_vx_max.reserve(100);
+  std::vector<double> velocitiy_vy_max;  velocitiy_vy_max.reserve(100);
+  std::vector<double> velocitiy_vz_max;  velocitiy_vz_max.reserve(100);
+
   ublas::vector<double> fdvxdvydz(c.Nvz,0.);
   ublas::vector<double> vxfdv(c.Nz,0.), vyfdv(c.Nz,0.), vzfdv(c.Nz,0.);
   ublas::vector<double> ec_perp(c.Nz,0.), ec_vz(c.Nz,0.);
@@ -300,7 +304,13 @@ main ( int argc , char const * argv[] )
   Bxmax.push_back( max_abs(Bx) );
   Bymax.push_back( max_abs(By) );
 
+  velocitiy_vx_max.push_back( 0. );
+  velocitiy_vy_max.push_back( 0. );
+  velocitiy_vz_max.push_back( 0. );
+
   monitoring::reactive_monitoring<std::vector<double>> moni( c.output_dir/("energy_"s + c.name + ".dat"s) , times , {&electric_energy,&magnetic_energy,&cold_energy,&kinetic_energy,&mass,&Exmax,&Eymax,&Bxmax,&Bymax} );
+
+  monitoring::reactive_monitoring<std::vector<double>> moni_velocity( c.output_dir/("velocity_"s + c.name + ".dat"s) , times , {&velocitiy_vx_max,&velocitiy_vy_max,&velocitiy_vz_max} );
 
   ublas::vector<std::complex<double>> hjcx(c.Nz,0.), hjcx1(c.Nz,0.), hjcx2(c.Nz,0.),
                                       hjcy(c.Nz,0.), hjcy1(c.Nz,0.), hjcy2(c.Nz,0.),
@@ -327,6 +337,10 @@ main ( int argc , char const * argv[] )
   std::size_t iteration_t = 0;
   while ( current_t<c.Tf ) {
     std::cout << escape << std::setw(8) << current_t << " / " << c.Tf << " [" << iteration_t << "]" << std::flush;
+
+    double max_velocity_vx = 0.;
+    double max_velocity_vy = 0.;
+    double max_velocity_vz = 0.;
 
     /* Lawson(RK(3,3)) */
     // FIRST STAGE //////////////////////////////////////////////////
@@ -418,6 +432,10 @@ main ( int argc , char const * argv[] )
               double velocity_vx = _velocity_vx(Ex,Ey,Bx,By); // Ex[i]*c_ + Ey[i]*s_ + v_z*Bx[i]*s_ - v_z*By[i]*c_;
               double velocity_vy = _velocity_vy(Ex,Ey,Bx,By); //-Ex[i]*s_ + Ey[i]*c_ + v_z*Bx[i]*c_ + v_z*By[i]*s_;
               double velocity_vz = _velocity_vz(Ex,Ey,Bx,By); //-Bx[i]*( w_1*s_ + w_2*c_ ) + By[i]*( w_1*c_ - w_2*s_ );
+              max_velocity_vx = std::max(std::abs(velocity_vx),max_velocity_vx);
+              max_velocity_vy = std::max(std::abs(velocity_vy),max_velocity_vy);
+              max_velocity_vz = std::max(std::abs(velocity_vz),max_velocity_vz);
+
               dvf[k_x][k_y][k_z][i] = + weno3d::weno_vx(velocity_vx,f,k_x,k_y,k_z,i)
                                       + weno3d::weno_vy(velocity_vy,f,k_x,k_y,k_z,i)
                                       + weno3d::weno_vz(velocity_vz,f,k_x,k_y,k_z,i);
@@ -533,6 +551,11 @@ main ( int argc , char const * argv[] )
               double velocity_vx = _velocity_vx(Ex,Ey,Bx,By); // Ex[i]*c_ + Ey[i]*s_ + v_z*Bx[i]*s_ - v_z*By[i]*c_; //Ex[i]*c_ + Ey[i]*s_ + v_z*Bx[i]*s_ + v_z*By[i]*c_;
               double velocity_vy = _velocity_vy(Ex,Ey,Bx,By); //-Ex[i]*s_ + Ey[i]*c_ + v_z*Bx[i]*c_ + v_z*By[i]*s_; //-Ex[i]*s_ + Ey[i]*c_ - v_z*Bx[i]*c_ + v_z*By[i]*s_;
               double velocity_vz = _velocity_vz(Ex,Ey,Bx,By); //-Bx[i]*( w_1*s_ + w_2*c_ ) + By[i]*( w_1*c_ - w_2*s_ ); //Bx[i]*( w_1*s_ + w_2*c_ ) - By[i]*( w_1*c_ - w_2*s_ );
+
+              max_velocity_vx = std::max(std::abs(velocity_vx),max_velocity_vx);
+              max_velocity_vy = std::max(std::abs(velocity_vy),max_velocity_vy);
+              max_velocity_vz = std::max(std::abs(velocity_vz),max_velocity_vz);
+
               dvf[k_x][k_y][k_z][i] = + weno3d::weno_vx(velocity_vx,f,k_x,k_y,k_z,i)
                                       + weno3d::weno_vy(velocity_vy,f,k_x,k_y,k_z,i)
                                       + weno3d::weno_vz(velocity_vz,f,k_x,k_y,k_z,i);
@@ -655,6 +678,11 @@ main ( int argc , char const * argv[] )
               double velocity_vx = _velocity_vx(Ex,Ey,Bx,By); // Ex[i]*c_ + Ey[i]*s_ + v_z*Bx[i]*s_ - v_z*By[i]*c_; //Ex[i]*c_ + Ey[i]*s_ + v_z*Bx[i]*s_ + v_z*By[i]*c_;
               double velocity_vy = _velocity_vy(Ex,Ey,Bx,By); //-Ex[i]*s_ + Ey[i]*c_ + v_z*Bx[i]*c_ + v_z*By[i]*s_; //-Ex[i]*s_ + Ey[i]*c_ - v_z*Bx[i]*c_ + v_z*By[i]*s_;
               double velocity_vz = _velocity_vz(Ex,Ey,Bx,By); //-Bx[i]*( w_1*s_ + w_2*c_ ) + By[i]*( w_1*c_ - w_2*s_ ); //Bx[i]*( w_1*s_ + w_2*c_ ) - By[i]*( w_1*c_ - w_2*s_ );
+
+              max_velocity_vx = std::max(std::abs(velocity_vx),max_velocity_vx);
+              max_velocity_vy = std::max(std::abs(velocity_vy),max_velocity_vy);
+              max_velocity_vz = std::max(std::abs(velocity_vz),max_velocity_vz);
+
               dvf[k_x][k_y][k_z][i] = + weno3d::weno_vx(velocity_vx,f,k_x,k_y,k_z,i)
                                       + weno3d::weno_vy(velocity_vy,f,k_x,k_y,k_z,i)
                                       + weno3d::weno_vz(velocity_vz,f,k_x,k_y,k_z,i);
@@ -699,12 +727,17 @@ main ( int argc , char const * argv[] )
     Bxmax.push_back( max_abs(Bx) );
     Bymax.push_back( max_abs(By) );
 
+    velocitiy_vx_max.push_back( max_velocity_vx );
+    velocitiy_vy_max.push_back( max_velocity_vy );
+    velocitiy_vz_max.push_back( max_velocity_vz );
+
     ++iteration_t;
     current_t += dt;
     times.push_back(current_t);
     moni.push();
+    moni_velocity.push();
 
-    //if ( iteration_t % 1000 == 0 )
+    if ( iteration_t % 1000 == 0 )
     {
       std::tie(fdvxdvydz,vxfdv,vyfdv,vzfdv) = compute_integrals( hf , current_t );
       std::stringstream filename; filename << "fdvxdvydz_" << c.name << "_" << iteration_t << ".dat";
