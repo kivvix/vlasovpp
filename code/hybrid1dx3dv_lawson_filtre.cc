@@ -55,7 +55,7 @@ main ( int argc , char const * argv[] )
   auto c = config(p);
   c.create_output_directory();
 
-  c.name = "vmhllf_uw";
+  c.name = "vmhllf";
 
   std::string escape;
   if ( argc > 2 ) { std::size_t line = std::stoul(argv[2]); std::stringstream sescape; sescape << "\033[" << line << ";0H"; escape = sescape.str(); }
@@ -66,8 +66,8 @@ main ( int argc , char const * argv[] )
   complex_field<double,3> hf(boost::extents[c.Nvx][c.Nvy][c.Nvz][c.Nz]);
 
   const double K = c.K;
-  f.range.vx_min = -4.0; f.range.vx_max = 4.0;
-  f.range.vy_min = -4.0; f.range.vy_max = 4.0;
+  f.range.vx_min = -3.6; f.range.vx_max = 3.6;
+  f.range.vy_min = -3.6; f.range.vy_max = 3.6;
   f.range.vz_min = -2.0; f.range.vz_max = 2.0;
   f.range.z_min =  0.;  f.range.z_max = 2.*math::pi<double>()/K;
   f.compute_steps();
@@ -117,7 +117,7 @@ main ( int argc , char const * argv[] )
     for (std::size_t k_y=0u ; k_y<f.size(1) ; ++k_y ) {
       for (std::size_t k_z=0u ; k_z<f.size(2) ; ++k_z ) {
         for (std::size_t i=0u ; i<f.size_x() ; ++i ) {
-          f[k_x][k_y][k_z][i] = M1( Zi(i),Vkx(k_x),Vky(k_y),Vkz(k_z) );
+          f[k_x][k_y][k_z][i] = M1( Zi(i),Vkx(k_x),Vky(k_y),Vkz(k_z) )*( 1.0 + c.alpha*std::cos(K*Zi(i)) );
 
           fvxz[k_y][k_z] += f[k_x][k_y][k_z][i]*f.step.dvx*f.step.dz;
           fvyz[k_x][k_z] += f[k_x][k_y][k_z][i]*f.step.dvy*f.step.dz;
@@ -135,7 +135,8 @@ main ( int argc , char const * argv[] )
   ublas::vector<double> Bx(c.Nz,0.),By(c.Nz,0.);
   for ( auto i=0u ; i<c.Nz ; ++i ) {
     double z = f.range.z_min + f.step.dz*i;
-    Bx[i] = c.alpha * std::sin(K*z);
+    //Bx[i] = c.alpha * std::sin(K*z);
+    Bx[i] = 0.;
   }
 
 
@@ -393,14 +394,14 @@ main ( int argc , char const * argv[] )
 
       #if JC_condition == 0
         for ( auto i=0u ; i<c.Nz ; ++i ) {
-          hjcx1[0] = 0.;
-          hjcy1[0] = 0.;
+          hjcx1[i] = 0.;
+          hjcy1[i] = 0.;
         }
       #endif
       #if Bxy_condition == 0
         for ( auto i=0u ; i<c.Nz ; ++i ) {
-          hBx1[0] = 0.;
-          hBy1[0] = 0.;
+          hBx1[i] = 0.;
+          hBy1[i] = 0.;
         }
       #endif
 
@@ -513,14 +514,14 @@ main ( int argc , char const * argv[] )
 
       #if JC_condition == 0
         for ( auto i=0u ; i<c.Nz ; ++i ) {
-          hjcx2[0] = 0.;
-          hjcy2[0] = 0.;
+          hjcx2[i] = 0.;
+          hjcy2[i] = 0.;
         }
       #endif
       #if Bxy_condition == 0
         for ( auto i=0u ; i<c.Nz ; ++i ) {
-          hBx2[0] = 0.;
-          hBy2[0] = 0.;
+          hBx2[i] = 0.;
+          hBy2[i] = 0.;
         }
       #endif
 
@@ -548,9 +549,9 @@ main ( int argc , char const * argv[] )
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
             double v_z = k_z*f.step.dvz + f.range.vz_min;
             for ( auto i=0u ; i<c.Nz ; ++i ) {
-              double velocity_vx = _velocity_vx(Ex,Ey,Bx,By); // Ex[i]*c_ + Ey[i]*s_ + v_z*Bx[i]*s_ - v_z*By[i]*c_; //Ex[i]*c_ + Ey[i]*s_ + v_z*Bx[i]*s_ + v_z*By[i]*c_;
-              double velocity_vy = _velocity_vy(Ex,Ey,Bx,By); //-Ex[i]*s_ + Ey[i]*c_ + v_z*Bx[i]*c_ + v_z*By[i]*s_; //-Ex[i]*s_ + Ey[i]*c_ - v_z*Bx[i]*c_ + v_z*By[i]*s_;
-              double velocity_vz = _velocity_vz(Ex,Ey,Bx,By); //-Bx[i]*( w_1*s_ + w_2*c_ ) + By[i]*( w_1*c_ - w_2*s_ ); //Bx[i]*( w_1*s_ + w_2*c_ ) - By[i]*( w_1*c_ - w_2*s_ );
+              double velocity_vx = _velocity_vx(Ex,Ey,Bx,By);
+              double velocity_vy = _velocity_vy(Ex,Ey,Bx,By);
+              double velocity_vz = _velocity_vz(Ex,Ey,Bx,By);
 
               max_velocity_vx = std::max(std::abs(velocity_vx),max_velocity_vx);
               max_velocity_vy = std::max(std::abs(velocity_vy),max_velocity_vy);
@@ -640,14 +641,14 @@ main ( int argc , char const * argv[] )
 
       #if JC_condition == 0
         for ( auto i=0u ; i<c.Nz ; ++i ) {
-          hjcx[0] = 0.;
-          hjcy[0] = 0.;
+          hjcx[i] = 0.;
+          hjcy[i] = 0.;
         }
       #endif
       #if Bxy_condition == 0
         for ( auto i=0u ; i<c.Nz ; ++i ) {
-          hBx[0] = 0.;
-          hBy[0] = 0.;
+          hBx[i] = 0.;
+          hBy[i] = 0.;
         }
       #endif
 

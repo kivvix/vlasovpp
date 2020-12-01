@@ -112,7 +112,7 @@ main ( int argc , char const * argv[] )
     for (std::size_t k_y=0u ; k_y<f.size(1) ; ++k_y ) {
       for (std::size_t k_z=0u ; k_z<f.size(2) ; ++k_z ) {
         for (std::size_t i=0u ; i<f.size_x() ; ++i ) {
-          f[k_x][k_y][k_z][i] = M1( Zi(i),Vkx(k_x),Vky(k_y),Vkz(k_z) );
+          f[k_x][k_y][k_z][i] = M1( Zi(i),Vkx(k_x),Vky(k_y),Vkz(k_z) )*( 1.0 + c.alpha*std::cos(K*Zi(i)) );
 
           fvxz[k_y][k_z] += f[k_x][k_y][k_z][i]*f.step.dvx*f.step.dz;
           fvyz[k_x][k_z] += f[k_x][k_y][k_z][i]*f.step.dvy*f.step.dz;
@@ -136,7 +136,8 @@ main ( int argc , char const * argv[] )
   ublas::vector<double> Bx(c.Nz,0.),By(c.Nz,0.);
   for ( auto i=0u ; i<c.Nz ; ++i ) {
     double z = f.range.z_min + f.step.dz*i;
-    Bx[i] = c.alpha * std::sin(K*z);
+    //Bx[i] = c.alpha * std::sin(K*z);
+    Bx[i] = 0.;
   }
 
 
@@ -378,7 +379,7 @@ main ( int argc , char const * argv[] )
     moni.push();
     moni_velocity.push();
 
-    if ( iteration_t % 1000 == 0 )
+    //if ( iteration_t % 1000 == 0 )
     {
       std::tie(fdvxdvydz,vxfdv,vyfdv,vzfdv) = compute_integrals( hf , current_t );
       std::stringstream filename; filename << "fdvxdvydz_" << c.name << "_" << iteration_t << ".dat";
