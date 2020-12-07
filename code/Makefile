@@ -6,6 +6,7 @@ include Makefile.config
 DEBUG_MODE ?= N
 JC_condition  ?= 1
 Bxy_condition ?= 1
+Exy_condition ?= 1
 
 SRC_dir    = source
 HEADER_dir = include/$(PROJET)

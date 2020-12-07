@@ -1236,6 +1236,11 @@ struct hybird1dx3dv
     for ( auto i=0 ; i<_Nz ; ++i ) {
       hEx[i] = hEx[i] - dt*I*kz[i]*hBy[i];
       hEy[i] = hEy[i] + dt*I*kz[i]*hBx[i];
+
+      #if Exy_condition == 0
+        hEx[i] = 0.;
+        hEy[i] = 0.;
+      #endif
     }
     hEx.ifft(Ex.begin());
     hEy.ifft(Ey.begin());
@@ -1278,6 +1283,11 @@ struct hybird1dx3dv
       // (Ex,Ey)^{n+1} = (Ex,Ey)^n - J (exp(-J dt) - I) (jcx,jcy)^n
       Ex[i] += -jcx[i]*std::sin(dt)      + jcy[i]*(1.-std::cos(dt));
       Ey[i] +=  jcx[i]*(std::cos(dt)-1.) - jcy[i]*std::sin(dt);
+
+      #if Exy_condition == 0
+        Ex[i] = 0.;
+        Ey[i] = 0.;
+      #endif
 
       jcx[i] = jcxn1;
       jcy[i] = jcyn1;
@@ -1356,6 +1366,10 @@ struct hybird1dx3dv
 
     for ( auto i=0u ; i<_Nz ; ++i ) {
       Ex[i] += dt*(jx[i] - mean);
+
+      #if Exy_condition == 0
+        Ex[i] = 0.;
+      #endif
     }
   }
 
@@ -1429,6 +1443,10 @@ struct hybird1dx3dv
 
     for ( auto i=0u ; i<_Nz ; ++i ) {
       Ey[i] += dt*(jy[i] - mean);
+
+      #if Exy_condition == 0
+        Ey[i] = 0.;
+      #endif
     }
   }
 

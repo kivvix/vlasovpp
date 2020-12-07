@@ -404,6 +404,12 @@ main ( int argc , char const * argv[] )
           hBy1[i] = 0.;
         }
       #endif
+      #if Exy_condition == 0
+        for ( auto i=0u ; i<c.Nz ; ++i ) {
+          hEx1[i] = 0.;
+          hEy1[i] = 0.;
+        }
+      #endif
 
 
       // compute hf1
@@ -522,6 +528,12 @@ main ( int argc , char const * argv[] )
         for ( auto i=0u ; i<c.Nz ; ++i ) {
           hBx2[i] = 0.;
           hBy2[i] = 0.;
+        }
+      #endif
+      #if Exy_condition == 0
+        for ( auto i=0u ; i<c.Nz ; ++i ) {
+          hEx2[i] = 0.;
+          hEy2[i] = 0.;
         }
       #endif
 
@@ -649,6 +661,12 @@ main ( int argc , char const * argv[] )
         for ( auto i=0u ; i<c.Nz ; ++i ) {
           hBx[i] = 0.;
           hBy[i] = 0.;
+        }
+      #endif
+      #if Exy_condition == 0
+        for ( auto i=0u ; i<c.Nz ; ++i ) {
+          hEx[i] = 0.;
+          hEy[i] = 0.;
         }
       #endif
 

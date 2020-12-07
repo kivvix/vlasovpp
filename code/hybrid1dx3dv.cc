@@ -67,8 +67,8 @@ main ( int argc , char const * argv[] )
   complex_field<double,3> hf(boost::extents[c.Nvx][c.Nvy][c.Nvz][c.Nz]);
 
   const double K = c.K;
-  f.range.vx_min = -4.0; f.range.vx_max = 4.0;
-  f.range.vy_min = -4.0; f.range.vy_max = 4.0;
+  f.range.vx_min = -3.6; f.range.vx_max = 3.6;
+  f.range.vy_min = -3.6; f.range.vy_max = 3.6;
   f.range.vz_min = -2.0; f.range.vz_max = 2.0;
   f.range.z_min =  0.;  f.range.z_max = 2.*math::pi<double>()/K;
   f.compute_steps();
@@ -379,7 +379,7 @@ main ( int argc , char const * argv[] )
     moni.push();
     moni_velocity.push();
 
-    //if ( iteration_t % 1000 == 0 )
+    if ( iteration_t % 1000 == 0 )
     {
       std::tie(fdvxdvydz,vxfdv,vyfdv,vzfdv) = compute_integrals( hf , current_t );
       std::stringstream filename; filename << "fdvxdvydz_" << c.name << "_" << iteration_t << ".dat";
