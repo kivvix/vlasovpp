@@ -113,11 +113,15 @@ main ( int argc , char const * argv[] )
   fvyz.compute_steps();
 
   auto M1 = maxwellian(nh,{0.,0.,0.},{v_perp,v_perp,v_par});
-  for (std::size_t k_x=0u ; k_x<f.size(0) ; ++k_x ) {
-    for (std::size_t k_y=0u ; k_y<f.size(1) ; ++k_y ) {
-      for (std::size_t k_z=0u ; k_z<f.size(2) ; ++k_z ) {
+  for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
+    const double vx = k_x*f.step.dvx + f.range.vx_min;
+    for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
+      const double vy = k_y*f.step.dvy + f.range.vy_min;
+      for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
+        const double vz = k_z*f.step.dvz + f.range.vz_min;
         for (std::size_t i=0u ; i<f.size_x() ; ++i ) {
-          f[k_x][k_y][k_z][i] = M1( Zi(i),Vkx(k_x),Vky(k_y),Vkz(k_z) )*( 1.0 + c.alpha*std::cos(K*Zi(i)) );
+          const double z = i*f.step.dz + f.range.z_min;
+          f[k_x][k_y][k_z][i] = M1( z,v_x,v_y,v_z )*( 1.0 + c.alpha*std::cos(K*z) );
 
           fvxz[k_y][k_z] += f[k_x][k_y][k_z][i]*f.step.dvx*f.step.dz;
           fvyz[k_x][k_z] += f[k_x][k_y][k_z][i]*f.step.dvy*f.step.dz;
@@ -352,10 +356,10 @@ main ( int argc , char const * argv[] )
       ublas::vector<std::complex<double>> hjhx(c.Nz,0.0), hjhy(c.Nz,0.0);
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
         double v_x = k_x*f.step.dvx + f.range.vx_min;
-        double w_1 = k_x*f.step.dvx + f.range.vx_min;
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
           double v_y = k_y*f.step.dvy + f.range.vy_min;
-          double w_2 = k_y*f.step.dvy + f.range.vy_min;
+          double w_1 =  v_x*c_ + v_y*s_;
+          double w_2 = -v_x*s_ + v_y*c_;
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
             double v_z = k_z*f.step.dvz + f.range.vz_min;
             for ( auto i=0u ; i<c.Nz ; ++i ) {
@@ -429,13 +433,12 @@ main ( int argc , char const * argv[] )
       // compute approximation of (E×vB)∂ᵥf
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
         double v_x = k_x*f.step.dvx + f.range.vx_min;
-        double w_1 = k_x*f.step.dvx + f.range.vx_min;
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
           double v_y = k_y*f.step.dvy + f.range.vy_min;
-          double w_2 = k_y*f.step.dvy + f.range.vy_min;
+          double w_1 =  v_x*c_ + v_y*s_;
+          double w_2 = -v_x*s_ + v_y*c_;
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
             double v_z = k_z*f.step.dvz + f.range.vz_min;
-            for ( auto i=0u ; i<c.Nz ; ++i ) {
               double velocity_vx = _velocity_vx(Ex,Ey,Bx,By); // Ex[i]*c_ + Ey[i]*s_ + v_z*Bx[i]*s_ - v_z*By[i]*c_;
               double velocity_vy = _velocity_vy(Ex,Ey,Bx,By); //-Ex[i]*s_ + Ey[i]*c_ + v_z*Bx[i]*c_ + v_z*By[i]*s_;
               double velocity_vz = _velocity_vz(Ex,Ey,Bx,By); //-Bx[i]*( w_1*s_ + w_2*c_ ) + By[i]*( w_1*c_ - w_2*s_ );
@@ -443,9 +446,9 @@ main ( int argc , char const * argv[] )
               max_velocity_vy = std::max(std::abs(velocity_vy),max_velocity_vy);
               max_velocity_vz = std::max(std::abs(velocity_vz),max_velocity_vz);
 
-              dvf[k_x][k_y][k_z][i] = + weno3d::weno_vx(velocity_vx,f,k_x,k_y,k_z,i)
-                                      + weno3d::weno_vy(velocity_vy,f,k_x,k_y,k_z,i)
-                                      + weno3d::weno_vz(velocity_vz,f,k_x,k_y,k_z,i);
+              dvf[k_x][k_y][k_z][i] = + cd23d::cd2_vx(velocity_vx,f,k_x,k_y,k_z,i)
+                                      + cd23d::cd2_vy(velocity_vy,f,k_x,k_y,k_z,i)
+                                      + cd23d::cd2_vz(velocity_vz,f,k_x,k_y,k_z,i);
             }
           }
         }
@@ -454,9 +457,7 @@ main ( int argc , char const * argv[] )
       // update hf1
       ublas::vector<std::complex<double>> hfvxvyvz(c.Nz,0.0);
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
-        double v_x = k_x*f.step.dvx + f.range.vx_min;
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
-          double v_y = k_y*f.step.dvy + f.range.vy_min;
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
             double v_z = k_z*f.step.dvz + f.range.vz_min;
             fft::fft( dvf[k_x][k_y][k_z].begin() , dvf[k_x][k_y][k_z].end() , hfvxvyvz.begin() );
@@ -477,10 +478,10 @@ main ( int argc , char const * argv[] )
       ublas::vector<std::complex<double>> hjhx(c.Nz,0.0), hjhy(c.Nz,0.0);
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
         double v_x = k_x*f.step.dvx + f.range.vx_min;
-        double w_1 = k_x*f.step.dvx + f.range.vx_min;
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
           double v_y = k_y*f.step.dvy + f.range.vy_min;
-          double w_2 = k_y*f.step.dvy + f.range.vy_min;
+          double w_1 =  v_x*c_ + v_y*s_;
+          double w_2 = -v_x*s_ + v_y*c_;
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
             double v_z = k_z*f.step.dvz + f.range.vz_min;
             for ( auto i=0u ; i<c.Nz ; ++i ) {
@@ -554,10 +555,10 @@ main ( int argc , char const * argv[] )
       // compute approximation of (E×vB)∂ᵥf
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
         double v_x = k_x*f.step.dvx + f.range.vx_min;
-        double w_1 = k_x*f.step.dvx + f.range.vx_min;
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
           double v_y = k_y*f.step.dvy + f.range.vy_min;
-          double w_2 = k_y*f.step.dvy + f.range.vy_min;
+          double w_1 =  v_x*c_ + v_y*s_;
+          double w_2 = -v_x*s_ + v_y*c_;
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
             double v_z = k_z*f.step.dvz + f.range.vz_min;
             for ( auto i=0u ; i<c.Nz ; ++i ) {
@@ -569,9 +570,9 @@ main ( int argc , char const * argv[] )
               max_velocity_vy = std::max(std::abs(velocity_vy),max_velocity_vy);
               max_velocity_vz = std::max(std::abs(velocity_vz),max_velocity_vz);
 
-              dvf[k_x][k_y][k_z][i] = + weno3d::weno_vx(velocity_vx,f,k_x,k_y,k_z,i)
-                                      + weno3d::weno_vy(velocity_vy,f,k_x,k_y,k_z,i)
-                                      + weno3d::weno_vz(velocity_vz,f,k_x,k_y,k_z,i);
+              dvf[k_x][k_y][k_z][i] = + cd23d::cd2_vx(velocity_vx,f,k_x,k_y,k_z,i)
+                                      + cd23d::cd2_vy(velocity_vy,f,k_x,k_y,k_z,i)
+                                      + cd23d::cd2_vz(velocity_vz,f,k_x,k_y,k_z,i);
             }
           }
         }
@@ -580,9 +581,7 @@ main ( int argc , char const * argv[] )
       // update hf2
       ublas::vector<std::complex<double>> hfvxvyvz(c.Nz,0.0);
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
-        double v_x = k_x*f.step.dvx + f.range.vx_min;
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
-          double v_y = k_y*f.step.dvy + f.range.vy_min;
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
             double v_z = k_z*f.step.dvz + f.range.vz_min;
             fft::fft( dvf[k_x][k_y][k_z].begin() , dvf[k_x][k_y][k_z].end() , hfvxvyvz.begin() );
@@ -603,10 +602,10 @@ main ( int argc , char const * argv[] )
       ublas::vector<std::complex<double>> hjhx(c.Nz,0.0), hjhy(c.Nz,0.0);
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
         double v_x = k_x*f.step.dvx + f.range.vx_min;
-        double w_1 = k_x*f.step.dvx + f.range.vx_min;
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
           double v_y = k_y*f.step.dvy + f.range.vy_min;
-          double w_2 = k_y*f.step.dvy + f.range.vy_min;
+          double w_1 =  v_x*c_ + v_y*s_;
+          double w_2 = -v_x*s_ + v_y*c_;
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
             double v_z = k_z*f.step.dvz + f.range.vz_min;
             for ( auto i=0u ; i<c.Nz ; ++i ) {
@@ -687,10 +686,10 @@ main ( int argc , char const * argv[] )
       // compute approximation of (E×vB)∂ᵥf
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
         double v_x = k_x*f.step.dvx + f.range.vx_min;
-        double w_1 = k_x*f.step.dvx + f.range.vx_min;
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
           double v_y = k_y*f.step.dvy + f.range.vy_min;
-          double w_2 = k_y*f.step.dvy + f.range.vy_min;
+          double w_1 =  v_x*c_ + v_y*s_;
+          double w_2 = -v_x*s_ + v_y*c_;
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
             double v_z = k_z*f.step.dvz + f.range.vz_min;
             for ( auto i=0u ; i<c.Nz ; ++i ) {
@@ -702,9 +701,9 @@ main ( int argc , char const * argv[] )
               max_velocity_vy = std::max(std::abs(velocity_vy),max_velocity_vy);
               max_velocity_vz = std::max(std::abs(velocity_vz),max_velocity_vz);
 
-              dvf[k_x][k_y][k_z][i] = + weno3d::weno_vx(velocity_vx,f,k_x,k_y,k_z,i)
-                                      + weno3d::weno_vy(velocity_vy,f,k_x,k_y,k_z,i)
-                                      + weno3d::weno_vz(velocity_vz,f,k_x,k_y,k_z,i);
+              dvf[k_x][k_y][k_z][i] = + cd23d::cd2_vx(velocity_vx,f,k_x,k_y,k_z,i)
+                                      + cd23d::cd2_vy(velocity_vy,f,k_x,k_y,k_z,i)
+                                      + cd23d::cd2_vz(velocity_vz,f,k_x,k_y,k_z,i);
             }
           }
         }
@@ -713,9 +712,7 @@ main ( int argc , char const * argv[] )
       // update hf
       ublas::vector<std::complex<double>> hfvxvyvz(c.Nz,0.0);
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
-        double v_x = k_x*f.step.dvx + f.range.vx_min;
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
-          double v_y = k_y*f.step.dvy + f.range.vy_min;
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
             double v_z = k_z*f.step.dvz + f.range.vz_min;
             fft::fft( dvf[k_x][k_y][k_z].begin() , dvf[k_x][k_y][k_z].end() , hfvxvyvz.begin() );

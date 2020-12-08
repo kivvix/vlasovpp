@@ -108,11 +108,15 @@ main ( int argc , char const * argv[] )
   fvyz.compute_steps();
 
   auto M1 = maxwellian(nh,{0.,0.,0.},{v_perp,v_perp,v_par});
-  for (std::size_t k_x=0u ; k_x<f.size(0) ; ++k_x ) {
-    for (std::size_t k_y=0u ; k_y<f.size(1) ; ++k_y ) {
-      for (std::size_t k_z=0u ; k_z<f.size(2) ; ++k_z ) {
+  for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
+    const double vx = k_x*f.step.dvx + f.range.vx_min;
+    for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
+      const double vy = k_y*f.step.dvy + f.range.vy_min;
+      for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
+        const double vz = k_z*f.step.dvz + f.range.vz_min;
         for (std::size_t i=0u ; i<f.size_x() ; ++i ) {
-          f[k_x][k_y][k_z][i] = M1( Zi(i),Vkx(k_x),Vky(k_y),Vkz(k_z) )*( 1.0 + c.alpha*std::cos(K*Zi(i)) );
+          const double z = i*f.step.dz + f.range.z_min;
+          f[k_x][k_y][k_z][i] = M1( z,v_x,v_y,v_z )*( 1.0 + c.alpha*std::cos(K*z) );
 
           fvxz[k_y][k_z] += f[k_x][k_y][k_z][i]*f.step.dvx*f.step.dz;
           fvyz[k_x][k_z] += f[k_x][k_y][k_z][i]*f.step.dvy*f.step.dz;

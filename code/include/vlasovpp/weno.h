@@ -346,4 +346,61 @@ namespace weno3d {
 
 }
 
+
+namespace cd23d {
+
+  using namespace boost::numeric;
+  #define SQ(X) ((X)*(X))
+
+  template < typename _T >
+  _T
+  dv_cd2 ( _T velocity , _T uim1 , _T uip1 , _T dx ) {
+    return 0.5*velocity*( uip1 - uim1 )/dx;
+  }
+
+  std::tuple<std::size_t,std::size_t,std::size_t,std::size_t,std::size_t,std::size_t,std::size_t>
+  periodic_index ( const std::size_t N , const std::size_t k ) {
+    std::size_t km1 = static_cast<std::size_t>(k-1),
+                kp1 = static_cast<std::size_t>(k+1);
+    if ( k < 1u ) {
+      km1 = static_cast<std::size_t>(( k-1 +N)%N);
+    }
+    if ( k >= N-1 ) {
+      kp1 = static_cast<std::size_t>(( k+1 )%N);
+    }
+    return std::make_tuple(km1,kp1);
+  }
+
+  template < typename _T >
+  _T
+  cd2_vx ( _T velocity , field3d<_T> const& u , std::size_t k_x , std::size_t k_y , std::size_t k_z , std::size_t i ) {
+    const std::size_t Nvx = u.size(0);
+    std::size_t kxm1, kxp1;
+    std::tie(kxm1,kxp1) = periodic_index(Nvx,k_x);
+
+    return dv_cd2( velocity , u[kxm1][k_y][k_z][i] , u[kxp1][k_y][k_z][i] , u.step.dvx );
+  }
+
+  template < typename _T >
+  _T
+  cd2_vy ( _T velocity , field3d<_T> const& u , std::size_t k_x , std::size_t k_y , std::size_t k_z , std::size_t i ) {
+    const std::size_t Nvy = u.size(1);
+    std::size_t kym1, kyp1;
+    std::tie(kym1,kyp1) = periodic_index(Nvy,k_y);
+
+    return dv_cd2( velocity , u[k_x][kym1][k_z][i] , u[k_x][kyp1][k_z][i] , u.step.dvy );
+  }
+
+  template < typename _T >
+  _T
+  cd2_vz ( _T velocity , field3d<_T> const& u , std::size_t k_x , std::size_t k_y , std::size_t k_z , std::size_t i ) {
+    const std::size_t Nvz = u.size(2);
+    std::size_t kzm1, kzp1;
+    std::tie(kzm1,kzp1) = periodic_index(Nvz,k_z);
+
+    return dv_cd2( velocity , u[k_x][k_y][kzm1][i] , u[k_x][k_y][kzp1][i] , u.step.dvz );
+  }
+
+}
+
 #endif
