@@ -97,5 +97,5 @@ coffee :
 
 %.out : %.cc $(LIB_dir)/lib$(PROJET).so $(INC)
 	@$(echo) "\033[95m$@\033[0m"
-	$(CXX) $(CFLAGS) $(DEBUGFLAGS) -g $< $(foreach inc,$(INCLUDES),-I $(inc)) -L $(LIB_dir) $(foreach lib,$(LIBS),-l$(lib)) -D JC_condition=$(JC_condition) -D Bxy_condition=$(Bxy_condition) -o $@
+	$(CXX) $(CFLAGS) $(DEBUGFLAGS) -g $< $(foreach inc,$(INCLUDES),-I $(inc)) -L $(LIB_dir) $(foreach lib,$(LIBS),-l$(lib)) -D JC_condition=$(JC_condition) -D Bxy_condition=$(Bxy_condition) -D Exy_condition=$(Exy_condition) -o $@
 	@$(echo) "\033[1mcompilation done\033[0m"
