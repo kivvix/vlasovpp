@@ -116,7 +116,7 @@ main ( int argc , char const * argv[] )
         const double vz = k_z*f.step.dvz + f.range.vz_min;
         for (std::size_t i=0u ; i<f.size_x() ; ++i ) {
           const double z = i*f.step.dz + f.range.z_min;
-          f[k_x][k_y][k_z][i] = M1( z,v_x,v_y,v_z )*( 1.0 + c.alpha*std::cos(K*z) );
+          f[k_x][k_y][k_z][i] = M1( z,vx,vy,vz )*( 1.0 + c.alpha*std::cos(K*z) );
 
           fvxz[k_y][k_z] += f[k_x][k_y][k_z][i]*f.step.dvx*f.step.dz;
           fvyz[k_x][k_z] += f[k_x][k_y][k_z][i]*f.step.dvy*f.step.dz;

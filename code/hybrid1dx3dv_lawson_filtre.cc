@@ -121,7 +121,7 @@ main ( int argc , char const * argv[] )
         const double vz = k_z*f.step.dvz + f.range.vz_min;
         for (std::size_t i=0u ; i<f.size_x() ; ++i ) {
           const double z = i*f.step.dz + f.range.z_min;
-          f[k_x][k_y][k_z][i] = M1( z,v_x,v_y,v_z )*( 1.0 + c.alpha*std::cos(K*z) );
+          f[k_x][k_y][k_z][i] = M1( z,vx,vy,vz )*( 1.0 + c.alpha*std::cos(K*z) );
 
           fvxz[k_y][k_z] += f[k_x][k_y][k_z][i]*f.step.dvx*f.step.dz;
           fvyz[k_x][k_z] += f[k_x][k_y][k_z][i]*f.step.dvy*f.step.dz;
@@ -439,6 +439,7 @@ main ( int argc , char const * argv[] )
           double w_2 = -v_x*s_ + v_y*c_;
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
             double v_z = k_z*f.step.dvz + f.range.vz_min;
+            for ( auto i=0u ; i<c.Nz ; ++i ) {
               double velocity_vx = _velocity_vx(Ex,Ey,Bx,By); // Ex[i]*c_ + Ey[i]*s_ + v_z*Bx[i]*s_ - v_z*By[i]*c_;
               double velocity_vy = _velocity_vy(Ex,Ey,Bx,By); //-Ex[i]*s_ + Ey[i]*c_ + v_z*Bx[i]*c_ + v_z*By[i]*s_;
               double velocity_vz = _velocity_vz(Ex,Ey,Bx,By); //-Bx[i]*( w_1*s_ + w_2*c_ ) + By[i]*( w_1*c_ - w_2*s_ );
@@ -446,9 +447,9 @@ main ( int argc , char const * argv[] )
               max_velocity_vy = std::max(std::abs(velocity_vy),max_velocity_vy);
               max_velocity_vz = std::max(std::abs(velocity_vz),max_velocity_vz);
 
-              dvf[k_x][k_y][k_z][i] = + cd23d::cd2_vx(velocity_vx,f,k_x,k_y,k_z,i)
-                                      + cd23d::cd2_vy(velocity_vy,f,k_x,k_y,k_z,i)
-                                      + cd23d::cd2_vz(velocity_vz,f,k_x,k_y,k_z,i);
+              dvf[k_x][k_y][k_z][i] = + cd23d::d_vx(velocity_vx,f,k_x,k_y,k_z,i)
+                                      + cd23d::d_vy(velocity_vy,f,k_x,k_y,k_z,i)
+                                      + cd23d::d_vz(velocity_vz,f,k_x,k_y,k_z,i);
             }
           }
         }
@@ -570,9 +571,9 @@ main ( int argc , char const * argv[] )
               max_velocity_vy = std::max(std::abs(velocity_vy),max_velocity_vy);
               max_velocity_vz = std::max(std::abs(velocity_vz),max_velocity_vz);
 
-              dvf[k_x][k_y][k_z][i] = + cd23d::cd2_vx(velocity_vx,f,k_x,k_y,k_z,i)
-                                      + cd23d::cd2_vy(velocity_vy,f,k_x,k_y,k_z,i)
-                                      + cd23d::cd2_vz(velocity_vz,f,k_x,k_y,k_z,i);
+              dvf[k_x][k_y][k_z][i] = + cd23d::d_vx(velocity_vx,f,k_x,k_y,k_z,i)
+                                      + cd23d::d_vy(velocity_vy,f,k_x,k_y,k_z,i)
+                                      + cd23d::d_vz(velocity_vz,f,k_x,k_y,k_z,i);
             }
           }
         }
@@ -701,9 +702,9 @@ main ( int argc , char const * argv[] )
               max_velocity_vy = std::max(std::abs(velocity_vy),max_velocity_vy);
               max_velocity_vz = std::max(std::abs(velocity_vz),max_velocity_vz);
 
-              dvf[k_x][k_y][k_z][i] = + cd23d::cd2_vx(velocity_vx,f,k_x,k_y,k_z,i)
-                                      + cd23d::cd2_vy(velocity_vy,f,k_x,k_y,k_z,i)
-                                      + cd23d::cd2_vz(velocity_vz,f,k_x,k_y,k_z,i);
+              dvf[k_x][k_y][k_z][i] = + cd23d::d_vx(velocity_vx,f,k_x,k_y,k_z,i)
+                                      + cd23d::d_vy(velocity_vy,f,k_x,k_y,k_z,i)
+                                      + cd23d::d_vz(velocity_vz,f,k_x,k_y,k_z,i);
             }
           }
         }
