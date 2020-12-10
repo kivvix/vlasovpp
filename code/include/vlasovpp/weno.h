@@ -289,16 +289,10 @@ namespace weno3d {
     _T vp = std::max(velocity,0.);
     _T vm = std::min(velocity,0.);
 
-    #ifdef linearized_WENO
-      auto fip12 = wenolin::local_flux(uim2,uim1,ui,uip1,uip2,uip3);
-      auto fim12 = wenolin::local_flux(uim3,uim2,uim1,ui,uip1,uip2);
-    #else
-      auto fip12 = weno::local_flux(uim2,uim1,ui,uip1,uip2,uip3);
-      auto fim12 = weno::local_flux(uim3,uim2,uim1,ui,uip1,uip2);
-    #endif
+    auto fip12 = weno::local_flux(uim2,uim1,ui,uip1,uip2,uip3);
+    auto fim12 = weno::local_flux(uim3,uim2,uim1,ui,uip1,uip2);
 
-    return ( vp*(fip12.first - fim12.first) + vm*(fip12.second - fim12.second) )/dx;
-    //return ( vp*(ui-uim1) + vm*(uip1-ui) )/dx; //upwind
+    return ( -vp*(fip12.first - fim12.first) - vm*(fip12.second - fim12.second) )/dx;
   }
 
   auto
@@ -416,7 +410,7 @@ namespace cd43d {
 
   auto
   periodic_index ( const std::size_t N , const std::size_t k ) {
-    km2 = static_cast<std::size_t>(k-2), km1 = static_cast<std::size_t>(k-1),
+    std::size_t km2 = static_cast<std::size_t>(k-2), km1 = static_cast<std::size_t>(k-1),
                 kp1 = static_cast<std::size_t>(k+1), kp2 = static_cast<std::size_t>(k+2);
     if ( k < 2u ) {
       km2 = static_cast<std::size_t>(( k-2 +N)%N); km1 = static_cast<std::size_t>(( k-1 +N)%N);
@@ -432,7 +426,7 @@ namespace cd43d {
   d_vx ( _T velocity , field3d<_T> const& u , std::size_t k_x , std::size_t k_y , std::size_t k_z , std::size_t i ) {
     const std::size_t Nvx = u.size(0);
     std::size_t kxm2, kxm1, kx, kxp1, kxp2;
-    std::tie(kxm3,kxm2,kxm1,kx,kxp1,kxp2,kxp3) = periodic_index(Nvx,k_x);
+    std::tie(kxm2,kxm1,kx,kxp1,kxp2) = periodic_index(Nvx,k_x);
 
     return dx( velocity , u[kxm2][k_y][k_z][i] , u[kxm1][k_y][k_z][i] , u[kx][k_y][k_z][i] , u[kxp1][k_y][k_z][i] , u[kxp2][k_y][k_z][i] , u.step.dvx );
   }
@@ -442,7 +436,7 @@ namespace cd43d {
   d_vy ( _T velocity , field3d<_T> const& u , std::size_t k_x , std::size_t k_y , std::size_t k_z , std::size_t i ) {
     const std::size_t Nvy = u.size(1);
     std::size_t kym2, kym1, ky, kyp1, kyp2;
-    std::tie(kym3,kym2,kym1,ky,kyp1,kyp2,kyp3) = periodic_index(Nvy,k_y);
+    std::tie(kym2,kym1,ky,kyp1,kyp2) = periodic_index(Nvy,k_y);
 
     return dx( velocity , u[k_x][kym2][k_z][i] , u[k_x][kym1][k_z][i] , u[k_x][ky][k_z][i] , u[k_x][kyp1][k_z][i] , u[k_x][kyp2][k_z][i] , u.step.dvy );
   }
@@ -452,7 +446,7 @@ namespace cd43d {
   d_vz ( _T velocity , field3d<_T> const& u , std::size_t k_x , std::size_t k_y , std::size_t k_z , std::size_t i ) {
     const std::size_t Nvz = u.size(2);
     std::size_t kzm2, kzm1, kz, kzp1, kzp2;
-    std::tie(kzm3,kzm2,kzm1,kz,kzp1,kzp2,kzp3) = periodic_index(Nvz,k_z);
+    std::tie(kzm2,kzm1,kz,kzp1,kzp2) = periodic_index(Nvz,k_z);
 
     return dx( velocity , u[k_x][k_y][kzm2][i] , u[k_x][k_y][kzm1][i] , u[k_x][k_y][kz][i] , u[k_x][k_y][kzp1][i] , u[k_x][k_y][kzp2][i] , u.step.dvz );
   }
