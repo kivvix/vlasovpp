@@ -76,7 +76,7 @@ main ( int argc , char const * argv[] )
   const double v_perp = c.v_perp;
   const double nh = c.nh;
 
-  double dt = std::min(c.dt0,f.step.dz);
+  double dt = c.dt0;// std::min(c.dt0,f.step.dz);
   {
     std::ofstream ofconfig( c.output_dir / ("config_"s + c.name + ".init"s) );
     ofconfig << c << "\n";
@@ -116,7 +116,7 @@ main ( int argc , char const * argv[] )
         const double vz = k_z*f.step.dvz + f.range.vz_min;
         for (std::size_t i=0u ; i<f.size_x() ; ++i ) {
           const double z = i*f.step.dz + f.range.z_min;
-          f[k_x][k_y][k_z][i] = M1( z,vx,vy,vz )*( 1.0 + c.alpha*std::cos(K*z) );
+          f[k_x][k_y][k_z][i] = M1( z,vx,vy,vz ); //*( 1.0 + c.alpha*std::cos(K*z) );
 
           fvxz[k_y][k_z] += f[k_x][k_y][k_z][i]*f.step.dvx*f.step.dz;
           fvyz[k_x][k_z] += f[k_x][k_y][k_z][i]*f.step.dvy*f.step.dz;
@@ -140,8 +140,8 @@ main ( int argc , char const * argv[] )
   ublas::vector<double> Bx(c.Nz,0.),By(c.Nz,0.);
   for ( auto i=0u ; i<c.Nz ; ++i ) {
     double z = f.range.z_min + f.step.dz*i;
-    //Bx[i] = c.alpha * std::sin(K*z);
-    Bx[i] = 0.;
+    Bx[i] = c.alpha * std::sin(K*z);
+    //Bx[i] = 0.;
   }
 
 

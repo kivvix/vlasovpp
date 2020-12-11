@@ -89,7 +89,8 @@ def default_1dz3dv(Nz=27,Nvx=56,Nvy=56,Nvz=57,dt0=0.05,Tf=200,nh=0.2,v_par=0.2,v
   }
 
 configs = [
-          simu_config_1dz3dv(**default_1dz3dv(Tf=0.02,dt0=0.01,Nz=27,Nvx=20,Nvy=20,Nvz=43,v_par=0.2,v_perp=0.6,nh=1.0,B0=0.0,alpha=0.2,output_dir="runs/VA_test")),
+          simu_config_1dz3dv(**default_1dz3dv(Tf=200,dt0=0.01,Nz=15,Nvx=20,Nvy=20,Nvz=43,v_par=0.2,v_perp=0.6,nh=0.4,B0=1.0,alpha=1e-2,output_dir="runs/vmhl_test1")),
+          simu_config_1dz3dv(**default_1dz3dv(Tf=200,dt0=0.01,Nz=27,Nvx=20,Nvy=20,Nvz=43,v_par=0.2,v_perp=0.6,nh=0.4,B0=1.0,alpha=1e-2,output_dir="runs/vmhl_test2")),
         ]
 simus = ["hybrid1dx3dv.out","hybrid1dx3dv_lawson_filtre.out"]
 process = []
