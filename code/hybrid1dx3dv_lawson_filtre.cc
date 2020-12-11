@@ -740,28 +740,6 @@ main ( int argc , char const * argv[] )
     return ss.str();
   };
 
-
-  auto pfvxz = fvxz.origin() , pfvyz = fvyz.origin();
-  for ( auto i=0u ; i<fvxz.num_elements() ; ++i ) {
-    pfvxz[i] = 0.;
-    pfvyz[i] = 0.;
-  }
-
-  for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
-    for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
-      for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
-        fft::ifft( hf[k_x][k_y][k_z].begin() , hf[k_x][k_y][k_z].end() , f[k_x][k_y][k_z].begin() );
-        for ( auto i=0u ; i<c.Nz ; ++i ) {
-          fvxz[k_y][k_z] += f[k_x][k_y][k_z][i]*f.step.dvx*f.step.dz;
-          fvyz[k_x][k_z] += f[k_x][k_y][k_z][i]*f.step.dvy*f.step.dz;
-        }
-      }
-    }
-  }
-
-  fvxz.write(c.output_dir/("fvxz_end_"s + c.name + ".dat"s));
-  fvyz.write(c.output_dir/("fvyz_end_"s + c.name + ".dat"s));
-
   c << monitoring::make_data( "ee"s + c.name + ".dat"s , electric_energy , writer_t_y );
   c << monitoring::make_data( "eb"s + c.name + ".dat"s , magnetic_energy , writer_t_y );
   c << monitoring::make_data( "ec"s + c.name + ".dat"s , cold_energy     , writer_t_y );
