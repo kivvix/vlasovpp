@@ -4,6 +4,7 @@ PROJET = vlasovpp
 include Makefile.config
 
 DEBUG_MODE ?= N
+PARALLEL_MODE ?= Y
 JC_condition  ?= 1
 Bxy_condition ?= 1
 Exy_condition ?= 1
@@ -49,6 +50,11 @@ else
 	COMPIL_mode = "\033[1mCompilation en mode release\033[0m"
 endif
 
+ifeq ($(PARALLEL_MODE),Y)
+	CFLAGS += -fopenmp
+	DEBUGFLAGS += -D_GLIBCXX_PARALLEL
+endif
+
 #linker
 LD = $(CXX) -fPIC -shared
 LDFLAGS = $(CFLAGS)
@@ -88,6 +94,7 @@ mrproper : clean
 nuke : mrproper
 	@$(echo) "  ,-*\n (_)\n"
 	rm -f *.out
+	rm -Rf *.out.dSYM
 
 coffee :
 	@$(echo) "It's coffee time!\n"

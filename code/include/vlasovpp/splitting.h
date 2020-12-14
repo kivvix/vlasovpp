@@ -1061,13 +1061,14 @@ struct hybird1dx3dv
         \end{cases}
       $$
     **/
+    #pragma omp parallel for collapse(4)
     for ( auto k_x=0u ; k_x<_Nvx ; ++k_x ) {
-      _T vx = k_x*_dvx + _vx_min;
       for ( auto k_y=0u ; k_y<_Nvy ; ++k_y ) {
-        _T vy = k_y*_dvy + _vy_min;
         for ( auto k_z=0u ; k_z<_Nvz ; ++k_z ) {
-          _T vz = k_z*_dvz + _vz_min;
           for ( auto i=0u ; i<_Nz ; ++i ) {
+            _T vx = k_x*_dvx + _vx_min;
+            _T vy = k_y*_dvy + _vy_min;
+            _T vz = k_z*_dvz + _vz_min;
             _T  vstar = vx + dt*Ex[i]; // vstar = v_x + dt*Ex
             int kstar = std::ceil((vstar - _vx_min)/_dvx);
 
@@ -1097,13 +1098,14 @@ struct hybird1dx3dv
         \end{cases}
       $$
     **/
+    #pragma omp parallel for collapse(4)
     for ( auto k_x=0u ; k_x<_Nvx ; ++k_x ) {
-      _T vx = k_x*_dvx + _vx_min;
       for ( auto k_y=0u ; k_y<_Nvy ; ++k_y ) {
-        _T vy = k_y*_dvy + _vy_min;
         for ( auto k_z=0u ; k_z<_Nvz ; ++k_z ) {
-          _T vz = k_z*_dvz + _vz_min;
           for ( auto i=0u ; i<_Nz ; ++i ) {
+            _T vx = k_x*_dvx + _vx_min;
+            _T vy = k_y*_dvy + _vy_min;
+            _T vz = k_z*_dvz + _vz_min;
             _T  vstar = vy + dt*Ey[i]; // vstar = v_y + dt*Ey
             int kstar = std::ceil((vstar - _vy_min)/_dvy);
 
@@ -1183,6 +1185,7 @@ struct hybird1dx3dv
     fft::spectrum_ hEx(_Nz); hEx.fft(Ex.begin());
     fft::spectrum_ hEy(_Nz); hEy.fft(Ey.begin());
 
+    #pragma omp parallel for
     for ( auto i=0 ; i<_Nz ; ++i ) {
       hBx[i] = hBx[i] + dt*I*kz[i]*hEy[i];
       hBy[i] = hBy[i] - dt*I*kz[i]*hEx[i];
@@ -1194,7 +1197,6 @@ struct hybird1dx3dv
     }
     hBx.ifft(Bx.begin());
     hBy.ifft(By.begin());
-
 
     #if Bxy_condition == 0
       for ( auto i=0 ; i<_Nz ; ++i ) {
@@ -1233,6 +1235,7 @@ struct hybird1dx3dv
     fft::spectrum_ hEx(_Nz); hEx.fft(Ex.begin());
     fft::spectrum_ hEy(_Nz); hEy.fft(Ey.begin());
 
+    #pragma omp parallel for
     for ( auto i=0 ; i<_Nz ; ++i ) {
       hEx[i] = hEx[i] - dt*I*kz[i]*hBy[i];
       hEy[i] = hEy[i] + dt*I*kz[i]*hBx[i];
@@ -1268,6 +1271,7 @@ struct hybird1dx3dv
       $$
     **/
 
+    #pragma omp parallel for
     for ( auto i=0u ; i<_Nz ; ++i ) {
       // (jcx,jcy)^{n+1} = exp(-J dt)*(jcx,jcy)^n
       double jcxn1 =  jcx[i]*std::cos(dt) - jcy[i]*std::sin(dt);
@@ -1300,12 +1304,13 @@ struct hybird1dx3dv
   H_f_1_vy ( _T dt , const field3d<_T> & fin , field3d<_T> & fout )
   {
     // \partial_t f + vxB0\partial_{v_y} f = 0
+    #pragma omp parallel for collapse(4)
     for ( auto k_x=0u ; k_x<_Nvx ; ++k_x ) {
-      _T vx = k_x*_dvx + _vx_min;
       for ( auto k_y=0u ; k_y<_Nvy ; ++k_y ) {
-        _T vy = k_y*_dvy + _vy_min;
         for ( auto k_z=0u ; k_z<_Nvz ; ++k_z ) {
           for ( auto i=0u ; i<_Nz ; ++i ) {
+            _T vx = k_x*_dvx + _vx_min;
+            _T vy = k_y*_dvy + _vy_min;
             _T  vstar = vy - dt*vx*_B0;
             int kstar = std::ceil((vstar - _vy_min)/_dvy);
 
@@ -1332,13 +1337,14 @@ struct hybird1dx3dv
 
     ublas::vector<_T> jx(_Nz,0.);
 
+    #pragma omp parallel for collapse(4)
     for ( auto k_x=0u ; k_x<_Nvx ; ++k_x ) {
-      _T vx = k_x*_dvx + _vx_min;
       for ( auto k_y=0u ; k_y<_Nvy ; ++k_y ) {
-        _T vy = k_y*_dvy + _vy_min;
         for ( auto k_z=0u ; k_z<_Nvz ; ++k_z ) {
-          _T vz = k_z*_dvz + _vz_min;
           for ( auto i=0u ; i<_Nz ; ++i ) {
+            _T vx = k_x*_dvx + _vx_min;
+            _T vy = k_y*_dvy + _vy_min;
+            _T vz = k_z*_dvz + _vz_min;
             _T  vstar = vz + dt*vx*By[i];
             int kstar = std::ceil((vstar - _vz_min)/_dvz);
 
@@ -1377,12 +1383,13 @@ struct hybird1dx3dv
   H_f_2_vx ( _T dt , const field3d<_T> & fin , field3d<_T> & fout )
   {
     // \partial_t f - v_yB_0\partial_{v_x} f = 0
+    #pragma omp parallel for collapse(4)
     for ( auto k_x=0u ; k_x<_Nvx ; ++k_x ) {
-      _T vx = k_x*_dvx + _vx_min;
       for ( auto k_y=0u ; k_y<_Nvy ; ++k_y ) {
-        _T vy = k_y*_dvy + _vy_min;
         for ( auto k_z=0u ; k_z<_Nvz ; ++k_z ) {
           for ( auto i=0u ; i<_Nz ; ++i ) {
+            _T vx = k_x*_dvx + _vx_min;
+            _T vy = k_y*_dvy + _vy_min;
             _T  vstar = vx + dt*vy*_B0;
             int kstar = std::ceil((vstar - _vx_min)/_dvx);
 
@@ -1409,13 +1416,14 @@ struct hybird1dx3dv
 
     ublas::vector<_T> jy(_Nz,0.);
 
+    #pragma omp parallel for collapse(4)
     for ( auto k_x=0u ; k_x<_Nvx ; ++k_x ) {
-      _T vx = k_x*_dvx + _vx_min;
       for ( auto k_y=0u ; k_y<_Nvy ; ++k_y ) {
-        _T vy = k_y*_dvy + _vy_min;
         for ( auto k_z=0u ; k_z<_Nvz ; ++k_z ) {
-          _T vz = k_z*_dvz + _vz_min;
           for ( auto i=0u ; i<_Nz ; ++i ) {
+            _T vx = k_x*_dvx + _vx_min;
+            _T vy = k_y*_dvy + _vy_min;
+            _T vz = k_z*_dvz + _vz_min;
             _T  vstar = vz - dt*vy*Bx[i];
             int kstar = std::ceil((vstar - _vz_min)/_dvz);
 
@@ -1437,6 +1445,7 @@ struct hybird1dx3dv
 
     // pour s'assurer que Ex est de moyenne nulle
     _T mean = 0.;
+    #pragma omp parallel for reduction(+:mean)
     for ( auto i=0u ; i<_Nz ; ++i ) {
       mean += jy[i]/_Nz;
     }
@@ -1466,17 +1475,14 @@ struct hybird1dx3dv
     //ublas::vector<double> tmp(_Nz,0.);
     //fft::spectrum_ htmp(_Nz);
 
+    #pragma omp parallel for collapse(4)
     for ( auto k_x=0u ; k_x<_Nvx ; ++k_x ) {
-      _T vx = k_x*_dvx + _vx_min;
       for ( auto k_y=0u ; k_y<_Nvy ; ++k_y ) {
-        _T vy = k_y*_dvy + _vy_min;
         for ( auto k_z=0u ; k_z<_Nvz ; ++k_z ) {
-          _T vz = k_z*_dvz + _vz_min;
-          //for ( auto i=1u ; i<_Nz ; ++i )
-          //  { htmp[i] = -I*hB[i]/kz[i]*(std::exp(I*kz[i]*vz*dt)-1.); }
-          //htmp.ifft(tmp.begin());
-
           for ( auto i=0u ; i<_Nz ; ++i ) {
+            _T vx = k_x*_dvx + _vx_min;
+            _T vy = k_y*_dvy + _vy_min;
+            _T vz = k_z*_dvz + _vz_min;
             _T z = i*_dz + _z_min;
 
             std::complex<double> shBy = 0.;
@@ -1486,19 +1492,11 @@ struct hybird1dx3dv
             for ( int k=-_Nz/2 ; k<0 ; ++k ) {
               shBy += -I*std::conj(hB[-k]/static_cast<double>(_Nz)) / (kz[_Nz+k]) * std::exp(I*kz[_Nz+k]*z) * ( std::exp(I*kz[_Nz+k]*vz*dt) - 1. );
             }
-            /*
-            for ( auto k=1u ; k<_Nz/2 ; ++k ) {
-              shBy += -I*hB[k] / (kz[k]) * std::exp(I*kz[k]*z) * ( std::exp(I*kz[k]*vz*dt) - 1. );
-            }
-            */
 
             // shBy is in theory a real
             if ( std::imag(shBy) >= 1e-5 ) { std::cerr << "H_f_3_vx : \033[31;1m" << shBy << "\033[0m" << std::endl; }
-            //std::cout << "\r" << hB[0] << " " << shBy << "   ";
             
-
             _T  vstar = vx - std::real(shBy);
-            //_T  vstar = vx - tmp[i];
             int kstar = std::ceil((vstar - _vx_min)/_dvx);
 
             auto N = lagrange5::generator(
@@ -1532,17 +1530,14 @@ struct hybird1dx3dv
     //ublas::vector<double> tmp(_Nz,0.);
     //fft::spectrum_ htmp(_Nz);
 
+    #pragma omp parallel for collapse(4)
     for ( auto k_x=0u ; k_x<_Nvx ; ++k_x ) {
-      _T vx = k_x*_dvx + _vx_min;
       for ( auto k_y=0u ; k_y<_Nvy ; ++k_y ) {
-        _T vy = k_y*_dvy + _vy_min;
         for ( auto k_z=0u ; k_z<_Nvz ; ++k_z ) {
-          _T vz = k_z*_dvz + _vz_min;
-          //for ( auto i=1u ; i<_Nz ; ++i )
-          //  { htmp[i] = -I*hB[i]/kz[i]*(std::exp(I*kz[i]*vz*dt)-1.); }
-          //htmp.ifft(tmp.begin());
-
           for ( auto i=0u ; i<_Nz ; ++i ) {
+            _T vx = k_x*_dvx + _vx_min;
+            _T vy = k_y*_dvy + _vy_min;
+            _T vz = k_z*_dvz + _vz_min;
             _T z = i*_dz + _z_min;
 
             std::complex<double> shBx = 0.;
@@ -1553,19 +1548,10 @@ struct hybird1dx3dv
               shBx += -I*std::conj(hB[-k]/static_cast<double>(_Nz)) / (kz[_Nz+k]) * std::exp(I*kz[_Nz+k]*z) * ( std::exp(I*kz[_Nz+k]*vz*dt) - 1. );
             }
 
-            /*
-            std::complex<double> shBx = 0.;
-            for ( auto k=1u ; k<_Nz ; ++k ) {
-              shBx += -I*hB[k] / (kz[k]) * std::exp(I*kz[k]*z) * ( std::exp(I*kz[k]*vz*dt) - 1. );
-            }
-            */
-
             // shBx is in theory a real
             if ( std::imag(shBx) >= 1e-5 ) { std::cerr << "H_f_3_vy : \033[31;1m" << shBx << "\033[0m" << std::endl; }
-            //std::cout << "\r" << hB[0] << " " << shBx << "   ";
 
             _T  vstar = vy + std::real(shBx);
-            //_T vstar = vy + tmp[i];
             int kstar = std::ceil((vstar - _vy_min)/_dvy);
 
             auto N = lagrange5::generator(
@@ -1597,6 +1583,7 @@ struct hybird1dx3dv
 
     fft::spectrum_ hgin(_Nz);
 
+    #pragma omp parallel for collapse(3)
     for ( auto k_x=0u ; k_x<_Nvx ; ++k_x ) {
       for ( auto k_y=0u ; k_y<_Nvy ; ++k_y ) {
         for ( auto k_z=0u ; k_z<_Nvz ; ++k_z ) {
