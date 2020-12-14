@@ -1061,7 +1061,7 @@ struct hybird1dx3dv
         \end{cases}
       $$
     **/
-    #pragma omp parallel for collapse(4)
+    //#pragma omp parallel for collapse(4)
     for ( auto k_x=0u ; k_x<_Nvx ; ++k_x ) {
       for ( auto k_y=0u ; k_y<_Nvy ; ++k_y ) {
         for ( auto k_z=0u ; k_z<_Nvz ; ++k_z ) {
@@ -1098,7 +1098,7 @@ struct hybird1dx3dv
         \end{cases}
       $$
     **/
-    #pragma omp parallel for collapse(4)
+    //#pragma omp parallel for collapse(4)
     for ( auto k_x=0u ; k_x<_Nvx ; ++k_x ) {
       for ( auto k_y=0u ; k_y<_Nvy ; ++k_y ) {
         for ( auto k_z=0u ; k_z<_Nvz ; ++k_z ) {
@@ -1185,7 +1185,7 @@ struct hybird1dx3dv
     fft::spectrum_ hEx(_Nz); hEx.fft(Ex.begin());
     fft::spectrum_ hEy(_Nz); hEy.fft(Ey.begin());
 
-    #pragma omp parallel for
+    //#pragma omp parallel for
     for ( auto i=0 ; i<_Nz ; ++i ) {
       hBx[i] = hBx[i] + dt*I*kz[i]*hEy[i];
       hBy[i] = hBy[i] - dt*I*kz[i]*hEx[i];
@@ -1235,7 +1235,7 @@ struct hybird1dx3dv
     fft::spectrum_ hEx(_Nz); hEx.fft(Ex.begin());
     fft::spectrum_ hEy(_Nz); hEy.fft(Ey.begin());
 
-    #pragma omp parallel for
+    //#pragma omp parallel for
     for ( auto i=0 ; i<_Nz ; ++i ) {
       hEx[i] = hEx[i] - dt*I*kz[i]*hBy[i];
       hEy[i] = hEy[i] + dt*I*kz[i]*hBx[i];
@@ -1271,7 +1271,7 @@ struct hybird1dx3dv
       $$
     **/
 
-    #pragma omp parallel for
+    //#pragma omp parallel for
     for ( auto i=0u ; i<_Nz ; ++i ) {
       // (jcx,jcy)^{n+1} = exp(-J dt)*(jcx,jcy)^n
       double jcxn1 =  jcx[i]*std::cos(dt) - jcy[i]*std::sin(dt);
@@ -1304,7 +1304,7 @@ struct hybird1dx3dv
   H_f_1_vy ( _T dt , const field3d<_T> & fin , field3d<_T> & fout )
   {
     // \partial_t f + vxB0\partial_{v_y} f = 0
-    #pragma omp parallel for collapse(4)
+    //#pragma omp parallel for collapse(4)
     for ( auto k_x=0u ; k_x<_Nvx ; ++k_x ) {
       for ( auto k_y=0u ; k_y<_Nvy ; ++k_y ) {
         for ( auto k_z=0u ; k_z<_Nvz ; ++k_z ) {
@@ -1337,7 +1337,7 @@ struct hybird1dx3dv
 
     ublas::vector<_T> jx(_Nz,0.);
 
-    #pragma omp parallel for collapse(4)
+    //#pragma omp parallel for collapse(4)
     for ( auto k_x=0u ; k_x<_Nvx ; ++k_x ) {
       for ( auto k_y=0u ; k_y<_Nvy ; ++k_y ) {
         for ( auto k_z=0u ; k_z<_Nvz ; ++k_z ) {
@@ -1366,7 +1366,7 @@ struct hybird1dx3dv
 
     // pour s'assurer que Ex est de moyenne nulle
     _T mean = 0.;
-    #pragma omp parallel for reduction(+:mean)
+    //#pragma omp parallel for reduction(+:mean)
     for ( auto i=0u ; i<_Nz ; ++i ) {
       mean += jx[i]/_Nz;
     }
@@ -1384,7 +1384,7 @@ struct hybird1dx3dv
   H_f_2_vx ( _T dt , const field3d<_T> & fin , field3d<_T> & fout )
   {
     // \partial_t f - v_yB_0\partial_{v_x} f = 0
-    #pragma omp parallel for collapse(4)
+    //#pragma omp parallel for collapse(4)
     for ( auto k_x=0u ; k_x<_Nvx ; ++k_x ) {
       for ( auto k_y=0u ; k_y<_Nvy ; ++k_y ) {
         for ( auto k_z=0u ; k_z<_Nvz ; ++k_z ) {
@@ -1417,7 +1417,7 @@ struct hybird1dx3dv
 
     ublas::vector<_T> jy(_Nz,0.);
 
-    #pragma omp parallel for collapse(4)
+    //#pragma omp parallel for collapse(4)
     for ( auto k_x=0u ; k_x<_Nvx ; ++k_x ) {
       for ( auto k_y=0u ; k_y<_Nvy ; ++k_y ) {
         for ( auto k_z=0u ; k_z<_Nvz ; ++k_z ) {
@@ -1446,7 +1446,7 @@ struct hybird1dx3dv
 
     // pour s'assurer que Ex est de moyenne nulle
     _T mean = 0.;
-    #pragma omp parallel for reduction(+:mean)
+    //#pragma omp parallel for reduction(+:mean)
     for ( auto i=0u ; i<_Nz ; ++i ) {
       mean += jy[i]/_Nz;
     }
@@ -1476,7 +1476,7 @@ struct hybird1dx3dv
     //ublas::vector<double> tmp(_Nz,0.);
     //fft::spectrum_ htmp(_Nz);
 
-    #pragma omp parallel for collapse(4)
+    //#pragma omp parallel for collapse(4)
     for ( auto k_x=0u ; k_x<_Nvx ; ++k_x ) {
       for ( auto k_y=0u ; k_y<_Nvy ; ++k_y ) {
         for ( auto k_z=0u ; k_z<_Nvz ; ++k_z ) {
@@ -1531,7 +1531,7 @@ struct hybird1dx3dv
     //ublas::vector<double> tmp(_Nz,0.);
     //fft::spectrum_ htmp(_Nz);
 
-    #pragma omp parallel for collapse(4)
+    //#pragma omp parallel for collapse(4)
     for ( auto k_x=0u ; k_x<_Nvx ; ++k_x ) {
       for ( auto k_y=0u ; k_y<_Nvy ; ++k_y ) {
         for ( auto k_z=0u ; k_z<_Nvz ; ++k_z ) {
@@ -1584,7 +1584,7 @@ struct hybird1dx3dv
 
     fft::spectrum_ hgin(_Nz);
 
-    #pragma omp parallel for collapse(3)
+    //#pragma omp parallel for collapse(3)
     for ( auto k_x=0u ; k_x<_Nvx ; ++k_x ) {
       for ( auto k_y=0u ; k_y<_Nvy ; ++k_y ) {
         for ( auto k_z=0u ; k_z<_Nvz ; ++k_z ) {
@@ -1731,19 +1731,43 @@ struct hybird1dx3dv
       }
     }
 
+    double half_dt = 0.5*dt;
+
     // Hf1
-    H_f_1_vy(dt,_tmpf0,_tmpf1);
-    H_f_1_vz(dt,_tmpf1,_tmpf0,Ex,By);
+    H_f_1_vy(half_dt,_tmpf0,_tmpf1);
+    H_f_1_vz(half_dt,_tmpf1,_tmpf0,Ex,By);
 
     // Hf2
-    H_f_2_vx(dt,_tmpf0,_tmpf1);
-    H_f_2_vz(dt,_tmpf1,_tmpf0,Ey,Bx);
+    H_f_2_vx(half_dt,_tmpf0,_tmpf1);
+    H_f_2_vz(half_dt,_tmpf1,_tmpf0,Ey,Bx);
 
     // Hf3
-    H_f_3_vx(dt,_tmpf0,_tmpf1,By);
-    H_f_3_vy(dt,_tmpf1,_tmpf0,Bx);
+    H_f_3_vx(half_dt,_tmpf0,_tmpf1,By);
+    H_f_3_vy(half_dt,_tmpf1,_tmpf0,Bx);
     H_f_3_g_to_f(dt,_tmpf0,hf);
     
+    // Reverse for Strang's method
+    for ( auto k_x=0u ; k_x<_Nvx ; ++k_x ) {
+      for ( auto k_y=0u ; k_y<_Nvy ; ++k_y ) {
+        for ( auto k_z=0u ; k_z<_Nvz ; ++k_z ) {
+          fft::ifft( hf[k_x][k_y][k_z].begin() , hf[k_x][k_y][k_z].end() , _tmpf1[k_x][k_y][k_z].begin() );
+        }
+      }
+    }
+    H_f_3_vy(half_dt,_tmpf1,_tmpf0,Bx);
+    H_f_3_vx(half_dt,_tmpf0,_tmpf1,By);
+    H_f_2_vz(half_dt,_tmpf1,_tmpf0,Ey,Bx);
+    H_f_2_vx(half_dt,_tmpf0,_tmpf1);
+    H_f_1_vz(half_dt,_tmpf1,_tmpf0,Ex,By);
+    H_f_1_vy(half_dt,_tmpf0,_tmpf1);
+    for ( auto k_x=0u ; k_x<_Nvx ; ++k_x ) {
+      for ( auto k_y=0u ; k_y<_Nvy ; ++k_y ) {
+        for ( auto k_z=0u ; k_z<_Nvz ; ++k_z ) {
+          fft::fft( _tmpf1[k_x][k_y][k_z].begin() , _tmpf1[k_x][k_y][k_z].end() , hf[k_x][k_y][k_z].begin() );
+        }
+      }
+    }
+
     /*
     // Hf3tilde
     H_f_3_tilde_vx(dt,_tmpf0,_tmpf1,By);

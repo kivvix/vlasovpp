@@ -291,10 +291,13 @@ main ( int argc , char const * argv[] )
     std::cout << escape << std::setw(8) << current_t << " / " << c.Tf << " [" << iteration_t << "]" << std::flush;
 
 
-    Lie.H_E(dt,jcx,jcy,Ex,Ey,Bx,By,hf);
-    Lie.H_B(dt,jcx,jcy,Ex,Ey,Bx,By,hf);
-    Lie.H_jc(dt,jcx,jcy,Ex,Ey,Bx,By,hf);
+    Lie.H_E(0.5*dt,jcx,jcy,Ex,Ey,Bx,By,hf);
+    Lie.H_B(0.5*dt,jcx,jcy,Ex,Ey,Bx,By,hf);
+    Lie.H_jc(0.5*dt,jcx,jcy,Ex,Ey,Bx,By,hf);
     Lie.H_f(dt,jcx,jcy,Ex,Ey,Bx,By,hf);
+    Lie.H_jc(0.5*dt,jcx,jcy,Ex,Ey,Bx,By,hf);
+    Lie.H_B(0.5*dt,jcx,jcy,Ex,Ey,Bx,By,hf);
+    Lie.H_E(0.5*dt,jcx,jcy,Ex,Ey,Bx,By,hf);
 
     electric_energy.push_back(compute_electric_energy(Ex,Ey));
     magnetic_energy.push_back(compute_magnetic_energy(Bx,By));

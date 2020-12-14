@@ -3,7 +3,7 @@ PROJET = vlasovpp
 
 include Makefile.config
 
-DEBUG_MODE ?= N
+DEBUG_MODE ?= Y
 PARALLEL_MODE ?= Y
 JC_condition  ?= 1
 Bxy_condition ?= 1
@@ -51,6 +51,7 @@ else
 endif
 
 ifeq ($(PARALLEL_MODE),Y)
+	LIB_FFTW = fftw3_omp fftw3
 	CFLAGS += -fopenmp
 	DEBUGFLAGS += -D_GLIBCXX_PARALLEL
 endif
