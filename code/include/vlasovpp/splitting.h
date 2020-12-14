@@ -1366,6 +1366,7 @@ struct hybird1dx3dv
 
     // pour s'assurer que Ex est de moyenne nulle
     _T mean = 0.;
+    #pragma omp parallel for reduction(+:mean)
     for ( auto i=0u ; i<_Nz ; ++i ) {
       mean += jx[i]/_Nz;
     }

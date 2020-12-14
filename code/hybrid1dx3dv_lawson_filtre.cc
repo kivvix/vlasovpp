@@ -422,7 +422,7 @@ main ( int argc , char const * argv[] )
 
       // update hf1
       ublas::vector<std::complex<double>> hfvxvyvz(c.Nz,0.0);
-      #pragma omp parallel for collapse(3)
+      #pragma omp parallel for collapse(3) firstprivate(hfvxvyvz)
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
@@ -541,7 +541,7 @@ main ( int argc , char const * argv[] )
 
       // update hf2
       ublas::vector<std::complex<double>> hfvxvyvz(c.Nz,0.0);
-      #pragma omp parallel for collapse(3)
+      #pragma omp parallel for collapse(3) firstprivate(hfvxvyvz)
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
@@ -667,7 +667,7 @@ main ( int argc , char const * argv[] )
 
       // update hf
       ublas::vector<std::complex<double>> hfvxvyvz(c.Nz,0.0);
-      #pragma omp parallel for collapse(3)
+      #pragma omp parallel for collapse(3) firstprivate(hfvxvyvz)
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
