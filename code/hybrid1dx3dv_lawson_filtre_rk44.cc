@@ -29,7 +29,6 @@ using namespace std::string_literals;
 #include "vlasovpp/config.h"
 #include "vlasovpp/signal_handler.h"
 #include "vlasovpp/iteration.h"
-#include "vlasovpp/splitting.h"
 
 namespace math = boost::math::constants;
 const std::complex<double> & I = std::complex<double>(0.,1.);
@@ -39,7 +38,6 @@ const std::complex<double> & I = std::complex<double>(0.,1.);
 #define Vkx(k) (k*f.step.dvx+f.range.vx_min)
 #define Vky(k) (k*f.step.dvy+f.range.vy_min)
 #define Vkz(k) (k*f.step.dvz+f.range.vz_min)
-
 
 auto
 maxwellian ( double rho , std::vector<double> u , std::vector<double> T ) {
@@ -68,8 +66,8 @@ main ( int argc , char const * argv[] )
   complex_field<double,3> hf(boost::extents[c.Nvx][c.Nvy][c.Nvz][c.Nz]);
 
   const double K = c.K;
-  f.range.vx_min = -4.0; f.range.vx_max = 4.0;
-  f.range.vy_min = -4.0; f.range.vy_max = 4.0;
+  f.range.vx_min = -3.6; f.range.vx_max = 3.6;
+  f.range.vy_min = -3.6; f.range.vy_max = 3.6;
   f.range.vz_min = -2.0; f.range.vz_max = 2.0;
   f.range.z_min =  0.;  f.range.z_max = 2.*math::pi<double>()/K;
   f.compute_steps();
@@ -77,13 +75,13 @@ main ( int argc , char const * argv[] )
   const double v_perp = c.v_perp;
   const double nh = c.nh;
 
-  double dt = std::min({
+  double dt = c.dt0; /*std::min({
         c.dt0,
         f.step.dz,
         f.step.dvx/f.range.vy_max,
         f.step.dvy/f.range.vx_max,
         f.step.dvz
-      });
+      });*/
   c.dt0 = dt;
   {
     std::ofstream ofconfig( c.output_dir / ("config_"s + c.name + ".init"s) );
@@ -103,46 +101,32 @@ main ( int argc , char const * argv[] )
     for ( int i=-c.Nz/2 ; i<0 ; ++i ) { Kz[c.Nz+i] = 2.*math::pi<double>()*i/l; }
   }
 
-  // projection in some plan to see anisotropy in v
-  field<double,1> fvxz(boost::extents[c.Nvy][c.Nvz]);
-  field<double,1> fvyz(boost::extents[c.Nvx][c.Nvz]);
-  fvxz.range.v_min = f.range.vy_min; fvxz.range.v_max = f.range.vy_max;
-  fvxz.range.x_min = f.range.vz_min; fvxz.range.x_max = f.range.vz_max;
-  fvxz.compute_steps();
-
-  fvyz.range.v_min = f.range.vx_min; fvyz.range.v_max = f.range.vx_max;
-  fvyz.range.x_min = f.range.vz_min; fvyz.range.x_max = f.range.vz_max;
-  fvyz.compute_steps();
-
   auto M1 = maxwellian(nh,{0.,0.,0.},{v_perp,v_perp,v_par});
-  for (std::size_t k_x=0u ; k_x<f.size(0) ; ++k_x ) {
-    for (std::size_t k_y=0u ; k_y<f.size(1) ; ++k_y ) {
-      for (std::size_t k_z=0u ; k_z<f.size(2) ; ++k_z ) {
+  for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
+    const double vx = k_x*f.step.dvx + f.range.vx_min;
+    for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
+      const double vy = k_y*f.step.dvy + f.range.vy_min;
+      for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
+        const double vz = k_z*f.step.dvz + f.range.vz_min;
         for (std::size_t i=0u ; i<f.size_x() ; ++i ) {
-          f[k_x][k_y][k_z][i] = M1( Zi(i),Vkx(k_x),Vky(k_y),Vkz(k_z) );
-
-          fvxz[k_y][k_z] += f[k_x][k_y][k_z][i]*f.step.dvx*f.step.dz;
-          fvyz[k_x][k_z] += f[k_x][k_y][k_z][i]*f.step.dvy*f.step.dz;
-
+          const double z = i*f.step.dz + f.range.z_min;
+          f[k_x][k_y][k_z][i] = M1( z,vx,vy,vz );
+          //f[k_x][k_y][k_z][i] = M1( z,vx,vy,vz )*( 1.0 + c.alpha*std::cos(K*z) );
         }
         fft::fft(f[k_x][k_y][k_z].begin(),f[k_x][k_y][k_z].end(),hf[k_x][k_y][k_z].begin());
       }
     }
   }
-  fvxz.write(c.output_dir/"fvxz_init.dat");
-  fvyz.write(c.output_dir/"fvyz_init.dat");
 
   const double B0 = c.B0;
-  ublas::vector<double> Ex(c.Nz,0.),Ey(c.Nz,0.);
-  ublas::vector<double> Bx(c.Nz,0.),By(c.Nz,0.);
+  ublas::vector<double> jcx(c.Nz,0.) , jcy(c.Nz,0.);
+  ublas::vector<double> Ex(c.Nz,0.)  , Ey(c.Nz,0.);
+  ublas::vector<double> Bx(c.Nz,0.)  , By(c.Nz,0.);
   for ( auto i=0u ; i<c.Nz ; ++i ) {
     double z = f.range.z_min + f.step.dz*i;
     Bx[i] = c.alpha * std::sin(K*z);
+    //Bx[i] = 0.;
   }
-
-
-  ublas::vector<double> jcx(c.Nz,0.),jcy(c.Nz,0.);
-
 
   std::vector<double> times;           times.reserve(100);
   std::vector<double> electric_energy; electric_energy.reserve(100);
@@ -157,6 +141,8 @@ main ( int argc , char const * argv[] )
 
   ublas::vector<double> fdvxdvydz(c.Nvz,0.);
   ublas::vector<double> vxfdv(c.Nz,0.), vyfdv(c.Nz,0.), vzfdv(c.Nz,0.);
+  ublas::vector<double> ec_perp(c.Nz,0.), ec_vz(c.Nz,0.);
+  ublas::vector<double> rho_h(c.Nz,0.);
 
   auto compute_integrals = [&]( const complex_field<double,3> & hf , double current_t ) {
     ublas::vector<double> fdvxdvydz(c.Nvz,0.);
@@ -187,6 +173,51 @@ main ( int argc , char const * argv[] )
 
     return std::make_tuple(fdvxdvydz,vxfdv,vyfdv,vzfdv);
   };
+  auto compute_local_kinetic_energy = [&]( const complex_field<double,3> & hf ) {
+    ublas::vector<double> ec_perp(c.Nz,0.);
+    ublas::vector<double> ec_vz(c.Nz,0.);
+
+    ublas::vector<double> fvxvyvz(c.Nz,0.);
+
+    for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
+      double w_1 = k_x*f.step.dvx + f.range.vx_min;
+      for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
+        double w_2 = k_y*f.step.dvy + f.range.vy_min;
+        for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
+          double vz = k_z*f.step.dvz + f.range.vz_min;
+          fft::ifft( hf[k_x][k_y][k_z].begin() , hf[k_x][k_y][k_z].end() , fvxvyvz.begin() );
+          for ( auto i=0u ; i<c.Nz ; ++i ) {
+            ec_perp[i] += (w_1*w_1 + w_2*w_2)*fvxvyvz[i]*f.volumeV();
+            ec_vz[i]   += (vz*vz)*fvxvyvz[i]*f.volumeV();
+          }
+        }
+      }
+    }
+
+    return std::make_tuple( ec_perp , ec_vz );
+  };
+  auto compute_rho_h = [&]( const complex_field<double,3> & hf ) {
+    ublas::vector<double> rho(c.Nz,0.);
+
+    ublas::vector<double> fvxvyvz(c.Nz,0.);
+
+    for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
+      double vx = k_x*f.step.dvx + f.range.vx_min;
+      for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
+        double vy = k_y*f.step.dvy + f.range.vy_min;
+        for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
+          double vz = k_z*f.step.dvz + f.range.vz_min;
+          fft::ifft( hf[k_x][k_y][k_z].begin() , hf[k_x][k_y][k_z].end() , fvxvyvz.begin() );
+          for ( auto i=0u ; i<c.Nz ; ++i ) {
+            rho[i] += fvxvyvz[i]*f.volumeV();
+          }
+        }
+      }
+    }
+
+    return rho;
+  };
+
   auto printer__vz_y = [&,count=0] (auto const& y) mutable {
     std::stringstream ss; ss<<(count++)*f.step.dvz + f.range.vz_min<<" "<<y;
     return ss.str();
@@ -217,7 +248,6 @@ main ( int argc , char const * argv[] )
   auto compute_mass_kinetic_energy = [&](const complex_field<double,3> & hf) {
     double kinetic_energy = 0.;
     double mass = 0.;
-
     ublas::vector<double> fvxvyvz(c.Nz,0.);
     for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
       double vx = k_x*f.step.dvx + f.range.vx_min;
@@ -256,7 +286,11 @@ main ( int argc , char const * argv[] )
   Bxmax.push_back( max_abs(Bx) );
   Bymax.push_back( max_abs(By) );
 
-  monitoring::reactive_monitoring<std::vector<double>> moni( c.output_dir/("energy_"s + c.name + ".dat"s) , times , {&electric_energy,&magnetic_energy,&cold_energy,&kinetic_energy,&mass,&Exmax,&Eymax,&Bxmax,&Bymax} );
+  monitoring::reactive_monitoring<std::vector<double>> moni(
+    c.output_dir/("energy_"s + c.name + ".dat"s) ,
+    times ,
+    {&electric_energy,&magnetic_energy,&cold_energy,&kinetic_energy,&mass,&Exmax,&Eymax,&Bxmax,&Bymax}
+  );
 
   ublas::vector<std::complex<double>> hjcx(c.Nz,0.), hjcx1(c.Nz,0.), hjcx2(c.Nz,0.), hjcx3(c.Nz,0.),
                                       hjcy(c.Nz,0.), hjcy1(c.Nz,0.), hjcy2(c.Nz,0.), hjcy3(c.Nz,0.),
@@ -275,9 +309,9 @@ main ( int argc , char const * argv[] )
 
   #define _hjfx(hf) ( w_1*c_ - w_2*s_ )*hf[k_x][k_y][k_z][i]*f.volumeV()
   #define _hjfy(hf) ( w_1*s_ + w_2*c_ )*hf[k_x][k_y][k_z][i]*f.volumeV()
-  #define _velocity_vx(Ex,Ey,Bx,By)  Ex[i]*c_ + Ey[i]*s_ + v_z*Bx[i]*s_ - v_z*By[i]*c_
-  #define _velocity_vy(Ex,Ey,Bx,By) -Ex[i]*s_ + Ey[i]*c_ + v_z*Bx[i]*c_ + v_z*By[i]*s_
-  #define _velocity_vz(Ex,Ey,Bx,By) -Bx[i]*( w_1*s_ + w_2*c_ ) + By[i]*( w_1*c_ - w_2*s_ )
+  #define _velocity_vx(Ex,Ey,Bx,By) -( Ex[i]*c_ + Ey[i]*s_ + v_z*Bx[i]*s_ - v_z*By[i]*c_)
+  #define _velocity_vy(Ex,Ey,Bx,By) -(-Ex[i]*s_ + Ey[i]*c_ + v_z*Bx[i]*c_ + v_z*By[i]*s_)
+  #define _velocity_vz(Ex,Ey,Bx,By) -(-Bx[i]*( w_1*s_ + w_2*c_ ) + By[i]*( w_1*c_ - w_2*s_ ))
 
   std::size_t iteration_t = 0;
   while ( current_t<c.Tf ) {
@@ -291,11 +325,11 @@ main ( int argc , char const * argv[] )
       // compute $\int v_x \hat{f}\,\mathrm{d}v$ et $\int v_y \hat{f}\,\mathrm{d}v$
       ublas::vector<std::complex<double>> hjhx(c.Nz,0.0), hjhy(c.Nz,0.0);
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
-        double w_1 = k_x*f.step.dvx + f.range.vx_min;
+        const double w_1 = k_x*f.step.dvx + f.range.vx_min;
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
-          double w_2 = k_y*f.step.dvy + f.range.vy_min;
+          const double w_2 = k_y*f.step.dvy + f.range.vy_min;
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
-            double v_z = k_z*f.step.dvz + f.range.vz_min;
+            const double v_z = k_z*f.step.dvz + f.range.vz_min;
             for ( auto i=0u ; i<c.Nz ; ++i ) {
               hjhx[i] += _hjfx(hf);
               hjhy[i] += _hjfy(hf);
@@ -303,6 +337,7 @@ main ( int argc , char const * argv[] )
           }
         }
       }
+      // keep zero mean
       hjhx[0] = 0.0;
       hjhy[0] = 0.0;
 
@@ -320,6 +355,33 @@ main ( int argc , char const * argv[] )
         // ---
         hEy1[i] = 0.5*dt*(-1.*hjhx[i] + I*Kz[i]*hBy[i])*(0.621267812518167*std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.378732187481834*std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 0.5*dt*(I*Kz[i]*hBx[i] + hjhy[i])*(0.621267812518166*std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.378732187481833*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 1.0*hEx[i]*(0.621267812518167*std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.378732187481834*std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 1.0*hEy[i]*(0.621267812518166*std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.378732187481833*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 1.0*hjcx[i]*(0.242535625036333*std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.242535625036333*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 1.0*hjcy[i]*(0.242535625036333*std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.242535625036333*std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)));
       }
+      // keep zero mean
+      hjcx1[0] = 0.0;
+      hjcy1[0] = 0.0;
+      hBx1[0] = 0.0;
+      hBy1[0] = 0.0;
+      hEx1[0] = 0.0;
+      hEy1[0] = 0.0;
+
+      #if JC_condition == 0
+        for ( auto i=0u ; i<c.Nz ; ++i ) {
+          hjcx1[i] = 0.;
+          hjcy1[i] = 0.;
+        }
+      #endif
+      #if Bxy_condition == 0
+        for ( auto i=0u ; i<c.Nz ; ++i ) {
+          hBx1[i] = 0.;
+          hBy1[i] = 0.;
+        }
+      #endif
+      #if Exy_condition == 0
+        for ( auto i=0u ; i<c.Nz ; ++i ) {
+          hEx1[i] = 0.;
+          hEy1[i] = 0.;
+        }
+      #endif
+
 
       // compute hf1
 
@@ -337,32 +399,34 @@ main ( int argc , char const * argv[] )
       fft::ifft(hBy.begin(),hBy.end(),By.begin());
       // compute approximation of (E×vB)∂ᵥf
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
-        double w_1 = k_x*f.step.dvx + f.range.vx_min;
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
-          double w_2 = k_y*f.step.dvy + f.range.vy_min;
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
-            double v_z = k_z*f.step.dvz + f.range.vz_min;
             for ( auto i=0u ; i<c.Nz ; ++i ) {
-              double velocity_vx = _velocity_vx(Ex,Ey,Bx,By);
-              double velocity_vy = _velocity_vy(Ex,Ey,Bx,By);
-              double velocity_vz = _velocity_vz(Ex,Ey,Bx,By);
-              dvf[k_x][k_y][k_z][i] = + weno3d::weno_vx(velocity_vx,f,k_x,k_y,k_z,i)
-                                      + weno3d::weno_vy(velocity_vy,f,k_x,k_y,k_z,i)
-                                      + weno3d::weno_vz(velocity_vz,f,k_x,k_y,k_z,i);
+              const double w_1 = k_x*f.step.dvx + f.range.vx_min;
+              const double w_2 = k_y*f.step.dvy + f.range.vy_min;
+              const double v_z = k_z*f.step.dvz + f.range.vz_min;
+
+              const double velocity_vx = _velocity_vx(Ex,Ey,Bx,By);
+              const double velocity_vy = _velocity_vy(Ex,Ey,Bx,By);
+              const double velocity_vz = _velocity_vz(Ex,Ey,Bx,By);
+
+              dvf[k_x][k_y][k_z][i] = + weno3d::d_vx(velocity_vx,f,k_x,k_y,k_z,i)
+                                      + weno3d::d_vy(velocity_vy,f,k_x,k_y,k_z,i)
+                                      + weno3d::d_vz(velocity_vz,f,k_x,k_y,k_z,i);
             }
           }
         }
       }
 
       // update hf1
-      ublas::vector<std::complex<double>> hfvxvyvz(c.Nz,0.0);
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
-        double v_x = k_x*f.step.dvx + f.range.vx_min;
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
-          double v_y = k_y*f.step.dvy + f.range.vy_min;
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
-            double v_z = k_z*f.step.dvz + f.range.vz_min;
-            fft::fft( dvf[k_x][k_y][k_z].begin() , dvf[k_x][k_y][k_z].end() , hfvxvyvz.begin() );
+            const double v_z = k_z*f.step.dvz + f.range.vz_min;
+            //ublas::vector<std::complex<double>> hfvxvyvz(c.Nz,0.0);
+            //fft::fft( dvf[k_x][k_y][k_z].begin() , dvf[k_x][k_y][k_z].end() , hfvxvyvz.begin() );
+            fft::spectrum_ hfvxvyvz(c.Nz);
+            hfvxvyvz.fft(dvf[k_x][k_y][k_z].begin());
             for ( auto i=0u ; i<c.Nz ; ++i ) {
               hf1[k_x][k_y][k_z][i] = (0.5*dt*hfvxvyvz[i] + 1.0*hf[k_x][k_y][k_z][i])*std::exp(-0.5*I*Kz[i]*dt*v_z);
             }
@@ -379,11 +443,11 @@ main ( int argc , char const * argv[] )
       // compute $\int v_x \hat{f}^{(1)}\,\mathrm{d}v$ et $\int v_y \hat{f}^{(1)}\,\mathrm{d}v$
       ublas::vector<std::complex<double>> hjhx(c.Nz,0.0), hjhy(c.Nz,0.0);
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
-        double w_1 = k_x*f.step.dvx + f.range.vx_min;
+        const double w_1 = k_x*f.step.dvx + f.range.vx_min;
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
-          double w_2 = k_y*f.step.dvy + f.range.vy_min;
+          const double w_2 = k_y*f.step.dvy + f.range.vy_min;
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
-            double v_z = k_z*f.step.dvz + f.range.vz_min;
+            const double v_z = k_z*f.step.dvz + f.range.vz_min;
             for ( auto i=0u ; i<c.Nz ; ++i ) {
               hjhx[i] += _hjfx(hf1);
               hjhy[i] += _hjfy(hf1);
@@ -391,6 +455,7 @@ main ( int argc , char const * argv[] )
           }
         }
       }
+      // keep zero mean
       hjhx[0] = 0.0;
       hjhy[0] = 0.0;
 
@@ -408,6 +473,32 @@ main ( int argc , char const * argv[] )
         // ---
         hEy2[i] = 0.5*dt*(I*Kz[i]*hBx1[i] + hjhy[i]) - 1.0*hEx[i]*(0.621267812518167*std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.378732187481834*std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 1.0*hEy[i]*(0.621267812518166*std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.378732187481833*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 1.0*hjcx[i]*(0.242535625036333*std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.242535625036333*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 1.0*hjcy[i]*(0.242535625036333*std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.242535625036333*std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)));
       }
+      // keep zero mean
+      hjcx2[0] = 0.0;
+      hjcy2[0] = 0.0;
+      hBx2[0] = 0.0;
+      hBy2[0] = 0.0;
+      hEx2[0] = 0.0;
+      hEy2[0] = 0.0;
+
+      #if JC_condition == 0
+        for ( auto i=0u ; i<c.Nz ; ++i ) {
+          hjcx2[i] = 0.;
+          hjcy2[i] = 0.;
+        }
+      #endif
+      #if Bxy_condition == 0
+        for ( auto i=0u ; i<c.Nz ; ++i ) {
+          hBx2[i] = 0.;
+          hBy2[i] = 0.;
+        }
+      #endif
+      #if Exy_condition == 0
+        for ( auto i=0u ; i<c.Nz ; ++i ) {
+          hEx2[i] = 0.;
+          hEy2[i] = 0.;
+        }
+      #endif
 
       // compute hf2
 
@@ -425,18 +516,20 @@ main ( int argc , char const * argv[] )
       fft::ifft(hBy1.begin(),hBy1.end(),By.begin());
       // compute approximation of (E×vB)∂ᵥf
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
-        double w_1 = k_x*f.step.dvx + f.range.vx_min;
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
-          double w_2 = k_y*f.step.dvy + f.range.vy_min;
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
-            double v_z = k_z*f.step.dvz + f.range.vz_min;
             for ( auto i=0u ; i<c.Nz ; ++i ) {
-              double velocity_vx = _velocity_vx(Ex,Ey,Bx,By);
-              double velocity_vy = _velocity_vy(Ex,Ey,Bx,By);
-              double velocity_vz = _velocity_vz(Ex,Ey,Bx,By);
-              dvf[k_x][k_y][k_z][i] = + weno3d::weno_vx(velocity_vx,f,k_x,k_y,k_z,i)
-                                      + weno3d::weno_vy(velocity_vy,f,k_x,k_y,k_z,i)
-                                      + weno3d::weno_vz(velocity_vz,f,k_x,k_y,k_z,i);
+              const double w_1 = k_x*f.step.dvx + f.range.vx_min;
+              const double w_2 = k_y*f.step.dvy + f.range.vy_min;
+              const double v_z = k_z*f.step.dvz + f.range.vz_min;
+              
+              const double velocity_vx = _velocity_vx(Ex,Ey,Bx,By);
+              const double velocity_vy = _velocity_vy(Ex,Ey,Bx,By);
+              const double velocity_vz = _velocity_vz(Ex,Ey,Bx,By);
+
+              dvf[k_x][k_y][k_z][i] = + weno3d::d_vx(velocity_vx,f,k_x,k_y,k_z,i)
+                                      + weno3d::d_vy(velocity_vy,f,k_x,k_y,k_z,i)
+                                      + weno3d::d_vz(velocity_vz,f,k_x,k_y,k_z,i);
             }
           }
         }
@@ -445,11 +538,9 @@ main ( int argc , char const * argv[] )
       // update hf2
       ublas::vector<std::complex<double>> hfvxvyvz(c.Nz,0.0);
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
-        double v_x = k_x*f.step.dvx + f.range.vx_min;
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
-          double v_y = k_y*f.step.dvy + f.range.vy_min;
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
-            double v_z = k_z*f.step.dvz + f.range.vz_min;
+            const double v_z = k_z*f.step.dvz + f.range.vz_min;
             fft::fft( dvf[k_x][k_y][k_z].begin() , dvf[k_x][k_y][k_z].end() , hfvxvyvz.begin() );
             for ( auto i=0u ; i<c.Nz ; ++i ) {
               hf2[k_x][k_y][k_z][i] = 0.5*dt*hfvxvyvz[i] + 1.0*hf[k_x][k_y][k_z][i]*std::exp(-0.5*I*Kz[i]*dt*v_z);
@@ -460,18 +551,18 @@ main ( int argc , char const * argv[] )
 
     } // end second stage
 
-    // THIRD STAGE /////////////////////////////////////////////////
+    // THRID STAGE /////////////////////////////////////////////////
     {
       double c_ = std::cos(B0*(current_t+0.5*dt)), s_ = std::sin(B0*(current_t+0.5*dt));
 
       // compute $\int v_x \hat{f}^{(2)}\,\mathrm{d}v$ et $\int v_y \hat{f}^{(2)}\,\mathrm{d}v$
       ublas::vector<std::complex<double>> hjhx(c.Nz,0.0), hjhy(c.Nz,0.0);
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
-        double w_1 = k_x*f.step.dvx + f.range.vx_min;
+        const double w_1 = k_x*f.step.dvx + f.range.vx_min;
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
-          double w_2 = k_y*f.step.dvy + f.range.vy_min;
+          const double w_2 = k_y*f.step.dvy + f.range.vy_min;
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
-            double v_z = k_z*f.step.dvz + f.range.vz_min;
+            const double v_z = k_z*f.step.dvz + f.range.vz_min;
             for ( auto i=0u ; i<c.Nz ; ++i ) {
               hjhx[i] += _hjfx(hf2);
               hjhy[i] += _hjfy(hf2);
@@ -479,6 +570,7 @@ main ( int argc , char const * argv[] )
           }
         }
       }
+      // keep zero mean
       hjhx[0] = 0.0;
       hjhy[0] = 0.0;
 
@@ -496,6 +588,32 @@ main ( int argc , char const * argv[] )
         // ---
         hEy3[i] = 1.0*dt*(-1.*hjhx[i] + I*Kz[i]*hBy2[i])*(0.621267812518167*std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.378732187481834*std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 1.0*dt*(I*Kz[i]*hBx2[i] + hjhy[i])*(0.621267812518166*std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.378732187481833*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 1.0*hEx[i]*(0.621267812518167*std::sin(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.378732187481834*std::sin(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 1.0*hEy[i]*(0.621267812518166*std::cos(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.378732187481833*std::cos(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 1.0*hjcx[i]*(0.242535625036333*std::cos(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.242535625036333*std::cos(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 1.0*hjcy[i]*(0.242535625036333*std::sin(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.242535625036333*std::sin(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)));
       }
+      // keep zero mean
+      hjcx3[0] = 0.0;
+      hjcy3[0] = 0.0;
+      hBx3[0] = 0.0;
+      hBy3[0] = 0.0;
+      hEx3[0] = 0.0;
+      hEy3[0] = 0.0;
+
+      #if JC_condition == 0
+        for ( auto i=0u ; i<c.Nz ; ++i ) {
+          hjcx3[i] = 0.;
+          hjcy3[i] = 0.;
+        }
+      #endif
+      #if Bxy_condition == 0
+        for ( auto i=0u ; i<c.Nz ; ++i ) {
+          hBx3[i] = 0.;
+          hBy3[i] = 0.;
+        }
+      #endif
+      #if Exy_condition == 0
+        for ( auto i=0u ; i<c.Nz ; ++i ) {
+          hEx3[i] = 0.;
+          hEy3[i] = 0.;
+        }
+      #endif
 
       // compute hf3
 
@@ -513,20 +631,20 @@ main ( int argc , char const * argv[] )
       fft::ifft(hBy2.begin(),hBy2.end(),By.begin());
       // compute approximation of (E×vB)∂ᵥf
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
-        double v_x = k_x*f.step.dvx + f.range.vx_min;
-        double w_1 = k_x*f.step.dvx + f.range.vx_min;
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
-          double v_y = k_y*f.step.dvy + f.range.vy_min;
-          double w_2 = k_y*f.step.dvy + f.range.vy_min;
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
-            double v_z = k_z*f.step.dvz + f.range.vz_min;
             for ( auto i=0u ; i<c.Nz ; ++i ) {
-              double velocity_vx = _velocity_vx(Ex,Ey,Bx,By);
-              double velocity_vy = _velocity_vy(Ex,Ey,Bx,By);
-              double velocity_vz = _velocity_vz(Ex,Ey,Bx,By);
-              dvf[k_x][k_y][k_z][i] = + weno3d::weno_vx(velocity_vx,f,k_x,k_y,k_z,i)
-                                      + weno3d::weno_vy(velocity_vy,f,k_x,k_y,k_z,i)
-                                      + weno3d::weno_vz(velocity_vz,f,k_x,k_y,k_z,i);
+              const double w_1 = k_x*f.step.dvx + f.range.vx_min;
+              const double w_2 = k_y*f.step.dvy + f.range.vy_min;
+              const double v_z = k_z*f.step.dvz + f.range.vz_min;
+              
+              const double velocity_vx = _velocity_vx(Ex,Ey,Bx,By);
+              const double velocity_vy = _velocity_vy(Ex,Ey,Bx,By);
+              const double velocity_vz = _velocity_vz(Ex,Ey,Bx,By);
+
+              dvf[k_x][k_y][k_z][i] = + weno3d::d_vx(velocity_vx,f,k_x,k_y,k_z,i)
+                                      + weno3d::d_vy(velocity_vy,f,k_x,k_y,k_z,i)
+                                      + weno3d::d_vz(velocity_vz,f,k_x,k_y,k_z,i);
             }
           }
         }
@@ -535,11 +653,9 @@ main ( int argc , char const * argv[] )
       // update hf3
       ublas::vector<std::complex<double>> hfvxvyvz(c.Nz,0.0);
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
-        double v_x = k_x*f.step.dvx + f.range.vx_min;
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
-          double v_y = k_y*f.step.dvy + f.range.vy_min;
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
-            double v_z = k_z*f.step.dvz + f.range.vz_min;
+            const double v_z = k_z*f.step.dvz + f.range.vz_min;
             fft::fft( dvf[k_x][k_y][k_z].begin() , dvf[k_x][k_y][k_z].end() , hfvxvyvz.begin() );
             for ( auto i=0u ; i<c.Nz ; ++i ) {
               hf3[k_x][k_y][k_z][i] = 1.0*dt*hfvxvyvz[i]*std::exp(-0.5*I*Kz[i]*dt*v_z) + 1.0*hf[k_x][k_y][k_z][i]*std::exp(-1.0*I*Kz[i]*dt*v_z);
@@ -548,7 +664,7 @@ main ( int argc , char const * argv[] )
         }
       }
 
-    } // end second stage
+    } // end third stage
 
     // FOURTH STAGE //////////////////////////////////////////////////
     {
@@ -557,13 +673,11 @@ main ( int argc , char const * argv[] )
       // compute $\int v_x \hat{f}^{(3)}\,\mathrm{d}v$ et $\int v_y \hat{f}^{(3)}\,\mathrm{d}v$
       ublas::vector<std::complex<double>> hjhx(c.Nz,0.0), hjhy(c.Nz,0.0);
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
-        double v_x = k_x*f.step.dvx + f.range.vx_min;
-        double w_1 = k_x*f.step.dvx + f.range.vx_min;
+        const double w_1 = k_x*f.step.dvx + f.range.vx_min;
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
-          double v_y = k_y*f.step.dvy + f.range.vy_min;
-          double w_2 = k_y*f.step.dvy + f.range.vy_min;
+          const double w_2 = k_y*f.step.dvy + f.range.vy_min;
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
-            double v_z = k_z*f.step.dvz + f.range.vz_min;
+            const double v_z = k_z*f.step.dvz + f.range.vz_min;
             for ( auto i=0u ; i<c.Nz ; ++i ) {
               hjhx[i] += _hjfx(hf3);
               hjhy[i] += _hjfy(hf3);
@@ -571,6 +685,7 @@ main ( int argc , char const * argv[] )
           }
         }
       }
+      // keep zero mean
       hjhx[0] = 0.0;
       hjhy[0] = 0.0;
 
@@ -580,15 +695,15 @@ main ( int argc , char const * argv[] )
         // ---
         auto hjcy_tmp = 0.323380833381777*hEx1[i]*std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.323380833381777*hEx1[i]*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)) + 0.646761666763555*hEx2[i]*std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.646761666763555*hEx2[i]*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)) - 0.323380833381777*hEx[i]*std::cos(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.323380833381777*hEx[i]*std::cos(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)) + 0.323380833381777*hEy1[i]*std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.323380833381777*hEy1[i]*std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)) + 0.646761666763555*hEy2[i]*std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.646761666763555*hEy2[i]*std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)) - 0.323380833381777*hEy[i]*std::sin(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.323380833381777*hEy[i]*std::sin(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)) - 0.126244062493945*hjcx1[i]*std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.207089270839389*hjcx1[i]*std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)) - 0.252488124987889*hjcx2[i]*std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.414178541678778*hjcx2[i]*std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)) + 0.126244062493945*hjcx[i]*std::sin(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.207089270839389*hjcx[i]*std::sin(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)) + 0.126244062493945*hjcy1[i]*std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.207089270839389*hjcy1[i]*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)) + 0.252488124987889*hjcy2[i]*std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.414178541678778*hjcy2[i]*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)) + 0.333333333333333*hjcy3[i] - 0.126244062493945*hjcy[i]*std::cos(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.207089270839389*hjcy[i]*std::cos(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.));
         // ---
+
         auto hBx_tmp = 0.166666666666667*I*Kz[i]*dt*hEy3[i] + 0.333333333333333*hBx1[i] + 0.666666666666667*hBx2[i] + 0.333333333333333*hBx3[i] - 0.333333333333333*hBx[i];
         // ---
-
         auto hBy_tmp = -0.166666666666667*I*Kz[i]*dt*hEx3[i] + 0.333333333333333*hBy1[i] + 0.666666666666667*hBy2[i] + 0.333333333333333*hBy3[i] - 0.333333333333333*hBy[i];
         // ---
         auto hEx_tmp = -0.166666666666667*dt*(-1.*hjhx[i] + I*Kz[i]*hBy3[i]) + 1.0*hEx1[i]*(0.207089270839389*std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.126244062493944*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 1.0*hEx2[i]*(0.414178541678778*std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.252488124987889*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 0.333333333333333*hEx3[i] - 1.0*hEx[i]*(0.207089270839389*std::cos(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.126244062493944*std::cos(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 1.0*hEy1[i]*(0.207089270839389*std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.126244062493944*std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 1.0*hEy2[i]*(0.414178541678778*std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.252488124987889*std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 1.0*hEy[i]*(0.207089270839389*std::sin(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.126244062493944*std::sin(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 1.0*hjcx1[i]*(0.0808452083454443*std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.0808452083454443*std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 1.0*hjcx2[i]*(0.161690416690889*std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.161690416690889*std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 1.0*hjcx[i]*(0.0808452083454443*std::sin(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.0808452083454443*std::sin(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 1.0*hjcy1[i]*(0.0808452083454443*std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.0808452083454443*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 1.0*hjcy2[i]*(0.161690416690889*std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.161690416690889*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 1.0*hjcy[i]*(0.0808452083454443*std::cos(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.0808452083454443*std::cos(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)));
         // ---
         auto hEy_tmp = 0.166666666666667*dt*(I*Kz[i]*hBx3[i] + hjhy[i]) - 1.0*hEx1[i]*(0.207089270839389*std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.126244062493944*std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 1.0*hEx2[i]*(0.414178541678778*std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.252488124987889*std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 1.0*hEx[i]*(0.207089270839389*std::sin(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.126244062493944*std::sin(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 1.0*hEy1[i]*(0.207089270839389*std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.126244062493944*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 1.0*hEy2[i]*(0.414178541678778*std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.252488124987889*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 0.333333333333333*hEy3[i] - 1.0*hEy[i]*(0.207089270839389*std::cos(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.126244062493944*std::cos(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 1.0*hjcx1[i]*(0.0808452083454443*std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.0808452083454443*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 1.0*hjcx2[i]*(0.161690416690889*std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.161690416690889*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 1.0*hjcx[i]*(0.0808452083454443*std::cos(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.0808452083454443*std::cos(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 1.0*hjcy1[i]*(0.0808452083454443*std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.0808452083454443*std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 1.0*hjcy2[i]*(0.161690416690889*std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.161690416690889*std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 1.0*hjcy[i]*(0.0808452083454443*std::sin(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.0808452083454443*std::sin(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)));
-
+        
         hjcx[i] = hjcx_tmp;
         hjcy[i] = hjcy_tmp;
         hBx[i] = hBx_tmp;
@@ -596,6 +711,32 @@ main ( int argc , char const * argv[] )
         hEx[i] = hEx_tmp;
         hEy[i] = hEy_tmp;
       }
+      // keep zero mean
+      hjcx[0] = 0.0;
+      hjcy[0] = 0.0;
+      hBx[0] = 0.0;
+      hBy[0] = 0.0;
+      hEx[0] = 0.0;
+      hEy[0] = 0.0;
+
+      #if JC_condition == 0
+        for ( auto i=0u ; i<c.Nz ; ++i ) {
+          hjcx[i] = 0.;
+          hjcy[i] = 0.;
+        }
+      #endif
+      #if Bxy_condition == 0
+        for ( auto i=0u ; i<c.Nz ; ++i ) {
+          hBx[i] = 0.;
+          hBy[i] = 0.;
+        }
+      #endif
+      #if Exy_condition == 0
+        for ( auto i=0u ; i<c.Nz ; ++i ) {
+          hEx[i] = 0.;
+          hEy[i] = 0.;
+        }
+      #endif
 
       // update hf
 
@@ -612,21 +753,22 @@ main ( int argc , char const * argv[] )
       fft::ifft(hBx3.begin(),hBx3.end(),Bx.begin());
       fft::ifft(hBy3.begin(),hBy3.end(),By.begin());
       // compute approximation of (E×vB)∂ᵥf
+      #pragma omp parallel for collapse(4)
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
-        double v_x = k_x*f.step.dvx + f.range.vx_min;
-        double w_1 = k_x*f.step.dvx + f.range.vx_min;
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
-          double v_y = k_y*f.step.dvy + f.range.vy_min;
-          double w_2 = k_y*f.step.dvy + f.range.vy_min;
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
-            double v_z = k_z*f.step.dvz + f.range.vz_min;
             for ( auto i=0u ; i<c.Nz ; ++i ) {
-              double velocity_vx = _velocity_vx(Ex,Ey,Bx,By);
-              double velocity_vy = _velocity_vy(Ex,Ey,Bx,By);
-              double velocity_vz = _velocity_vz(Ex,Ey,Bx,By);
-              dvf[k_x][k_y][k_z][i] = + weno3d::weno_vx(velocity_vx,f,k_x,k_y,k_z,i)
-                                      + weno3d::weno_vy(velocity_vy,f,k_x,k_y,k_z,i)
-                                      + weno3d::weno_vz(velocity_vz,f,k_x,k_y,k_z,i);
+              const double w_1 = k_x*f.step.dvx + f.range.vx_min;
+              const double w_2 = k_y*f.step.dvy + f.range.vy_min;
+              const double v_z = k_z*f.step.dvz + f.range.vz_min;
+
+              const double velocity_vx = _velocity_vx(Ex,Ey,Bx,By);
+              const double velocity_vy = _velocity_vy(Ex,Ey,Bx,By);
+              const double velocity_vz = _velocity_vz(Ex,Ey,Bx,By);
+
+              dvf[k_x][k_y][k_z][i] = + weno3d::d_vx(velocity_vx,f,k_x,k_y,k_z,i)
+                                      + weno3d::d_vy(velocity_vy,f,k_x,k_y,k_z,i)
+                                      + weno3d::d_vz(velocity_vz,f,k_x,k_y,k_z,i);
             }
           }
         }
@@ -634,12 +776,11 @@ main ( int argc , char const * argv[] )
 
       // update hf
       ublas::vector<std::complex<double>> hfvxvyvz(c.Nz,0.0);
+      #pragma omp parallel for collapse(3) firstprivate(hfvxvyvz)
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
-        double v_x = k_x*f.step.dvx + f.range.vx_min;
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
-          double v_y = k_y*f.step.dvy + f.range.vy_min;
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
-            double v_z = k_z*f.step.dvz + f.range.vz_min;
+            const double v_z = k_z*f.step.dvz + f.range.vz_min;
             fft::fft( dvf[k_x][k_y][k_z].begin() , dvf[k_x][k_y][k_z].end() , hfvxvyvz.begin() );
             for ( auto i=0u ; i<c.Nz ; ++i ) {
               hf[k_x][k_y][k_z][i] = 0.166666666666667*dt*hfvxvyvz[i] + 0.333333333333333*hf1[k_x][k_y][k_z][i]*std::exp(-0.5*I*Kz[i]*dt*v_z) + 0.666666666666667*hf2[k_x][k_y][k_z][i]*std::exp(-0.5*I*Kz[i]*dt*v_z) + 0.333333333333333*hf3[k_x][k_y][k_z][i] - 0.333333333333333*hf[k_x][k_y][k_z][i]*std::exp(-1.0*I*Kz[i]*dt*v_z);
@@ -647,7 +788,7 @@ main ( int argc , char const * argv[] )
           }
         }
       }
-    } // end thrid stage
+    } // end fourth stage
 
 
     fft::ifft(hEx.begin(),hEx.end(),Ex.begin());
@@ -668,7 +809,13 @@ main ( int argc , char const * argv[] )
     Bxmax.push_back( max_abs(Bx) );
     Bymax.push_back( max_abs(By) );
 
-    if ( iteration_t % 1000 == 0 ) {
+    ++iteration_t;
+    current_t += dt;
+    times.push_back(current_t);
+    moni.push();
+
+    if ( iteration_t % 1000 == 0 )
+    {
       std::tie(fdvxdvydz,vxfdv,vyfdv,vzfdv) = compute_integrals( hf , current_t );
       std::stringstream filename; filename << "fdvxdvydz_" << c.name << "_" << iteration_t << ".dat";
       c << monitoring::make_data( filename.str() , fdvxdvydz , printer__vz_y );
@@ -681,40 +828,38 @@ main ( int argc , char const * argv[] )
         return ss.str();
       };
       c << monitoring::make_data( filename.str() , vxfdv , printer__z_jh );
+
+      std::tie(ec_perp,ec_vz) = compute_local_kinetic_energy( hf );
+      filename.str("");
+      filename << "keh_"<< c.name << "_" << iteration_t << ".dat";
+      auto printer__z_ec = [&,count=0] (auto const& y) mutable {
+        std::stringstream ss; ss<<(count)*f.step.dz + f.range.z_min<<" "<<ec_perp[count]<<" "<<ec_vz[count];
+        ++count;
+        return ss.str();
+      };
+      c << monitoring::make_data( filename.str() , ec_perp , printer__z_ec );
+
+      rho_h = compute_rho_h( hf );
+      filename.str("");
+      filename << "rhoh_"<< c.name << "_" << iteration_t << ".dat";
+      c << monitoring::make_data( filename.str() , ec_perp , printer__z_y );
+
+      filename.str("");
+      filename << "EBjxy_"<< c.name << "_" << iteration_t << ".dat";
+      auto printer__z_EBxy = [&,count=0] (auto const& y) mutable {
+        std::stringstream ss; ss<<(count)*f.step.dz + f.range.z_min<<" "<<Ex[count]<<" "<<Ey[count]<<" "<<Bx[count]<<" "<<By[count]<<" "<<jcx[count]<<" "<<jcy[count];
+        ++count;
+        return ss.str();
+      };
+      c << monitoring::make_data( filename.str() , Ex , printer__z_EBxy );
     }
 
-    ++iteration_t;
-    current_t += dt;
-    times.push_back(current_t);
-    moni.push();
   }
 
   auto writer_t_y = [&,count=0] (auto const& y) mutable {
     std::stringstream ss; ss<<times[count++]<<" "<<y;
     return ss.str();
   };
-
-
-  auto pfvxz = fvxz.origin() , pfvyz = fvyz.origin();
-  for ( auto i=0u ; i<fvxz.num_elements() ; ++i ) {
-    pfvxz[i] = 0.;
-    pfvyz[i] = 0.;
-  }
-
-  for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
-    for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
-      for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
-        fft::ifft( hf[k_x][k_y][k_z].begin() , hf[k_x][k_y][k_z].end() , f[k_x][k_y][k_z].begin() );
-        for ( auto i=0u ; i<c.Nz ; ++i ) {
-          fvxz[k_y][k_z] += f[k_x][k_y][k_z][i]*f.step.dvx*f.step.dz;
-          fvyz[k_x][k_z] += f[k_x][k_y][k_z][i]*f.step.dvy*f.step.dz;
-        }
-      }
-    }
-  }
-
-  fvxz.write(c.output_dir/("fvxz_end_"s + c.name + ".dat"s));
-  fvyz.write(c.output_dir/("fvyz_end_"s + c.name + ".dat"s));
 
   c << monitoring::make_data( "ee"s + c.name + ".dat"s , electric_energy , writer_t_y );
   c << monitoring::make_data( "eb"s + c.name + ".dat"s , magnetic_energy , writer_t_y );
