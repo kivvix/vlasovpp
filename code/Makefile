@@ -4,7 +4,7 @@ PROJET = vlasovpp
 include Makefile.config
 
 DEBUG_MODE ?= Y
-PARALLEL_MODE ?= Y
+PARALLEL_MODE ?= N
 JC_condition  ?= 1
 Bxy_condition ?= 1
 Exy_condition ?= 1
@@ -58,7 +58,7 @@ endif
 
 #linker
 LD = $(CXX) -fPIC -shared
-LDFLAGS = $(CFLAGS)
+LDFLAGS += $(CFLAGS)
 
 ### BUILD RULES #######################################################
 all : $(LIB_dir)/lib$(PROJET).so
@@ -81,6 +81,17 @@ $(OBJ_dir) :
 $(LIB_dir) :
 	@$(echo) "\033[92mmake $@ directory\033[0m"
 	mkdir -p $@
+
+## SCAN-BUILD #########################################################
+EXE = nuke hybrid1dx3dv_lawson_filtre.out
+scan-build : nuke
+	scan-build -o html \
+		-enable-checker debug.ViewCallGraph \
+		--use-c++=/usr/local/Cellar/llvm/11.0.0/bin/clang++ \
+	  --use-analyzer=/usr/local/Cellar/llvm/11.0.0/bin/clang \
+		-stats \
+		make $(EXE)
+
 
 ### cleanning rules
 
