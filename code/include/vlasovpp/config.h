@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <map>
 #include <tuple>
 #include <utility>
@@ -17,6 +18,7 @@
 #  if __has_include(<filesystem>)
 #    include <filesystem>
      namespace fs = std::filesystem;
+     //namespace fs = std::__fs::filesystem;
 #  elif __has_include(<experimental/filesystem>)
 #    include <experimental/filesystem>
      namespace fs = std::experimental::filesystem;
@@ -48,9 +50,13 @@ struct convertor {
   convertor ( fs::path && input )
   {
     std::ifstream ifs(std::move(input));
-    std::string key,value;
-    while ( ifs >> key >> value ) {
-      map_config[key] = value;
+    // it is not efficiency code but it has no dependance to boost or other lib
+    // and we don't care because this is just to read configuration file
+    for ( std::string line ; std::getline(ifs,line) ; ) {
+      std::stringstream sline; sline<<line; // convert line to stringstream
+      std::stringstream key,value;
+      sline.get(*key.rdbuf(),' '); sline.get(*value.rdbuf()); // get first field in key, and the rest into value (even if there is spaces)
+      map_config[key.str()] = value.str();
     }
     ifs.close();
   }
@@ -102,6 +108,7 @@ struct config {
   double v_par,v_perp;
   double K;
   double tol;
+  std::vector<double> snaptimes;
   fs::path output_dir;
 
   config ( fs::path && );

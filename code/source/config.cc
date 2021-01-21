@@ -74,6 +74,18 @@ config::config( fs::path && path_config )
 
   Tf = convert("Tf",10.0);
   tol = convert("tol",1e-5);
+
+  std::stringstream data; data << convert("snaptimes","50 100 150"s);
+  std::transform(
+      std::istream_iterator<std::string>(data) , // iterator on stringstream which contains snapshot times
+      std::istream_iterator<std::string>() ,     // end iterator on input stream (this is a default iterator)
+      std::back_inserter(snaptimes) ,            // insert at the end of snaptimes vector
+      [] ( std::string const& s ) {              // lambda function which converts string to double
+        return std::stod(s);
+      }
+    );
+  std::sort( std::begin(snaptimes) , std::end(snaptimes) );
+
   output_dir = convert("output_dir","."s);
 }
 
@@ -109,7 +121,10 @@ operator << ( std::ostream & os , const config & c )
      << "K " << c.K << "\n"
 
      << "Tf " << c.Tf << "\n"
-     << "tol " << c.tol << "\n"
+     << "tol " << c.tol << "\n";
+  os << "snaptimes ";
+  std::copy( std::begin(c.snaptimes) , std::end(c.snaptimes) , std::ostream_iterator<double>(os," ") );
+  os << "\n"
      << "output_dir " << c.output_dir.string();
   return os;
 }
