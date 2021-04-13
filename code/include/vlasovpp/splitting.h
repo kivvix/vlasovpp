@@ -1495,7 +1495,7 @@ struct hybird1dx3dv
             }
 
             // shBy is in theory a real
-            if ( std::imag(shBy) >= 1e-5 ) { std::cerr << "H_f_3_vx : \033[31;1m" << shBy << "\033[0m" << std::endl; }
+            //if ( std::imag(shBy) >= 1e-5 ) { std::cerr << "H_f_3_vx : \033[31;1m" << shBy << "\033[0m" << std::endl; }
             
             _T  vstar = vx - std::real(shBy);
             int kstar = std::ceil((vstar - _vx_min)/_dvx);
@@ -1550,7 +1550,7 @@ struct hybird1dx3dv
             }
 
             // shBx is in theory a real
-            if ( std::imag(shBx) >= 1e-5 ) { std::cerr << "H_f_3_vy : \033[31;1m" << shBx << "\033[0m" << std::endl; }
+            //if ( std::imag(shBx) >= 1e-5 ) { std::cerr << "H_f_3_vy : \033[31;1m" << shBx << "\033[0m" << std::endl; }
 
             _T  vstar = vy + std::real(shBx);
             int kstar = std::ceil((vstar - _vy_min)/_dvy);
@@ -1731,43 +1731,19 @@ struct hybird1dx3dv
       }
     }
 
-    double half_dt = 0.5*dt;
-
     // Hf1
-    H_f_1_vy(half_dt,_tmpf0,_tmpf1);
-    H_f_1_vz(half_dt,_tmpf1,_tmpf0,Ex,By);
+    H_f_1_vy(dt,_tmpf0,_tmpf1);
+    H_f_1_vz(dt,_tmpf1,_tmpf0,Ex,By);
 
     // Hf2
-    H_f_2_vx(half_dt,_tmpf0,_tmpf1);
-    H_f_2_vz(half_dt,_tmpf1,_tmpf0,Ey,Bx);
+    H_f_2_vx(dt,_tmpf0,_tmpf1);
+    H_f_2_vz(dt,_tmpf1,_tmpf0,Ey,Bx);
 
     // Hf3
-    H_f_3_vx(half_dt,_tmpf0,_tmpf1,By);
-    H_f_3_vy(half_dt,_tmpf1,_tmpf0,Bx);
+    H_f_3_vx(dt,_tmpf0,_tmpf1,By);
+    H_f_3_vy(dt,_tmpf1,_tmpf0,Bx);
     H_f_3_g_to_f(dt,_tmpf0,hf);
     
-    // Reverse for Strang's method
-    for ( auto k_x=0u ; k_x<_Nvx ; ++k_x ) {
-      for ( auto k_y=0u ; k_y<_Nvy ; ++k_y ) {
-        for ( auto k_z=0u ; k_z<_Nvz ; ++k_z ) {
-          fft::ifft( hf[k_x][k_y][k_z].begin() , hf[k_x][k_y][k_z].end() , _tmpf1[k_x][k_y][k_z].begin() );
-        }
-      }
-    }
-    H_f_3_vy(half_dt,_tmpf1,_tmpf0,Bx);
-    H_f_3_vx(half_dt,_tmpf0,_tmpf1,By);
-    H_f_2_vz(half_dt,_tmpf1,_tmpf0,Ey,Bx);
-    H_f_2_vx(half_dt,_tmpf0,_tmpf1);
-    H_f_1_vz(half_dt,_tmpf1,_tmpf0,Ex,By);
-    H_f_1_vy(half_dt,_tmpf0,_tmpf1);
-    for ( auto k_x=0u ; k_x<_Nvx ; ++k_x ) {
-      for ( auto k_y=0u ; k_y<_Nvy ; ++k_y ) {
-        for ( auto k_z=0u ; k_z<_Nvz ; ++k_z ) {
-          fft::fft( _tmpf1[k_x][k_y][k_z].begin() , _tmpf1[k_x][k_y][k_z].end() , hf[k_x][k_y][k_z].begin() );
-        }
-      }
-    }
-
     /*
     // Hf3tilde
     H_f_3_tilde_vx(dt,_tmpf0,_tmpf1,By);

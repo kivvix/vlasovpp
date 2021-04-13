@@ -55,7 +55,7 @@ main ( int argc , char const * argv[] )
   auto c = config(p);
   c.create_output_directory();
 
-  c.name = "vmhllf";
+  c.name = "vmhllf_dp43";
 
   std::string escape;
   if ( argc > 2 ) { std::size_t line = std::stoul(argv[2]); std::stringstream sescape; sescape << "\033[" << line << ";0H"; escape = sescape.str(); }
@@ -75,14 +75,15 @@ main ( int argc , char const * argv[] )
   const double v_perp = c.v_perp;
   const double nh = c.nh;
 
-  double dt = c.dt0; /*std::min({
+  //double dt = c.dt0;
+  /*std::min({
         c.dt0,
         f.step.dz,
         f.step.dvx/f.range.vy_max,
         f.step.dvy/f.range.vx_max,
         f.step.dvz
       });*/
-  c.dt0 = dt;
+  //c.dt0 = dt;
   {
     std::ofstream ofconfig( c.output_dir / ("config_"s + c.name + ".init"s) );
     ofconfig << c << "\n";
@@ -143,7 +144,29 @@ main ( int argc , char const * argv[] )
   ublas::vector<double> vxfdv(c.Nz,0.), vyfdv(c.Nz,0.), vzfdv(c.Nz,0.);
   ublas::vector<double> ec_perp(c.Nz,0.), ec_vz(c.Nz,0.);
   ublas::vector<double> rho_h(c.Nz,0.);
+  field<double,1> fdvxdvy(boost::extents[c.Nvz][c.Nz]);
 
+  auto compute_vperp_integral = [&]( const complex_field<double,3> & hf , double current_t ) {
+    field<double,1> fdvxdvy(boost::extents[c.Nvz][c.Nz]); // 2d field, 1dz-1dvz
+    fdvxdvy.range.v_min = f.range.vz_min; fdvxdvy.range.v_max = f.range.vz_max;
+    fdvxdvy.range.x_min = f.range.z_min;  fdvxdvy.range.x_max = f.range.z_max;
+    fdvxdvy.compute_steps();
+ 
+    ublas::vector<double> fvxvyvz(c.Nz,0.);
+ 
+    for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
+      for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
+        for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
+          fft::ifft( hf[k_x][k_y][k_z].begin() , hf[k_x][k_y][k_z].end() , fvxvyvz.begin() );
+          for ( auto i=0u ; i<c.Nz ; ++i ) {
+            fdvxdvy[k_z][i] = fvxvyvz[i]*f.step.dvx*f.step.dvy;
+          }
+        }
+      }
+    }
+ 
+    return fdvxdvy;
+  };
   auto compute_integrals = [&]( const complex_field<double,3> & hf , double current_t ) {
     ublas::vector<double> fdvxdvydz(c.Nvz,0.);
     ublas::vector<double> vxfdv(c.Nz,0.);
@@ -224,9 +247,6 @@ main ( int argc , char const * argv[] )
     return ss.str();
   };
 
-  double current_t = 0.;
-  times.push_back(0.);
-
   auto __compute_energy = [&]( const ublas::vector<double> & ux , const ublas::vector<double> & uy , double dz ) {
     return std::inner_product( ux.begin() , ux.end() , uy.begin() , 0.0 ,
                  std::plus<double>() ,
@@ -289,6 +309,19 @@ main ( int argc , char const * argv[] )
     {&electric_energy,&magnetic_energy,&cold_energy,&kinetic_energy,&mass,&Exmax,&Eymax,&Bxmax,&Bymax}
   );
 
+  std::vector<iteration_4d::iteration<double>> success_iter; success_iter.reserve(100);
+  std::vector<iteration_4d::iteration<double>> iterations;   iterations.reserve(100);
+  monitoring::reactive_monitoring< std::vector<iteration_4d::iteration<double>>> moni_success_iter(
+    c.output_dir/("success_iter_"s + c.name + ".dat"s) ,
+    success_iter ,
+    { } // yes it's strange but I hack this class to get monitoring with iteration_4d::iteration<double>
+  );
+  monitoring::reactive_monitoring< std::vector<iteration_4d::iteration<double>>> moni_iter(
+    c.output_dir/("iterations_"s + c.name + ".dat"s) ,
+    iterations ,
+    { } // yes it's strange but I hack this class to get monitoring with iteration_4d::iteration<double>
+  );
+
   ublas::vector<std::complex<double>> hjcx(c.Nz,0.),  hjcy(c.Nz,0.),  hEx(c.Nz,0.),  hEy(c.Nz,0.),  hBx(c.Nz,0.),  hBy(c.Nz,0.);
   ublas::vector<std::complex<double>> hjcx1(c.Nz,0.), hjcy1(c.Nz,0.), hEx1(c.Nz,0.), hEy1(c.Nz,0.), hBx1(c.Nz,0.), hBy1(c.Nz,0.);
   ublas::vector<std::complex<double>> hjcx2(c.Nz,0.), hjcy2(c.Nz,0.), hEx2(c.Nz,0.), hEy2(c.Nz,0.), hBx2(c.Nz,0.), hBy2(c.Nz,0.);
@@ -317,9 +350,18 @@ main ( int argc , char const * argv[] )
   #define _velocity_vz(Ex,Ey,Bx,By) -(-Bx[i]*( w_1*s_ + w_2*c_ ) + By[i]*( w_1*c_ - w_2*s_ ))
 
   auto next_snapshot = c.snaptimes.begin();
-  std::size_t iteration_t = 0;
-  while ( current_t<c.Tf ) {
-    std::cout << escape << std::setw(8) << current_t << " / " << c.Tf << " [" << iteration_t << "]" << std::flush;
+
+  const double dt_cfl_maxwell = 2.0*std::sqrt(2.0)/c.Nz;
+  iteration_4d::iteration<double> iter;
+  iter.dt = c.dt0;
+  times.push_back(iter.current_time);
+  success_iter.push_back(iter);
+  
+  while ( iter.current_time<c.Tf ) {
+    const double current_t = iter.current_time;
+    const double dt = iter.dt;
+    //std::cout << escape << std::setw(8) << current_t << " / " << c.Tf << " [" << iteration_t << "]" << std::flush;
+    std::cout << "\r" << iteration_4d::time(iter) << std::flush;
 
     /* Lawson(RK4(3)) */
     // FIRST STAGE //////////////////////////////////////////////////
@@ -893,40 +935,38 @@ main ( int argc , char const * argv[] )
 
 
     // ---- compute local error of the iteration ----------------------
-    double Lz_error = 0.;
-    for ( auto i=0u ; i<c.Nz ; ++i ) {
-      Lz_error += std::abs(hjcx5[i]-hjcx4[i]) + std::abs(hjcy5[i]-hjcy4[i]) +
-                  std::abs(hBx5[i]-hBx4[i])   + std::abs(hBy5[i]-hBy4[i])   +
-                  std::abs(hEx5[i]-hEx4[i])   + std::abs(hEy5[i]-hEy4[i]);
-    }
-    Lz_error *= f.step.dz;
+    iter.jcx_error(hjcx5,hjcx4,f.step.dz);
+    iter.jcy_error(hjcy5,hjcy4,f.step.dz);
+    iter.Bx_error(hBx5,hBx4,f.step.dz);
+    iter.By_error(hBy5,hBy4,f.step.dz);
+    iter.Ex_error(hEx5,hEx4,f.step.dz);
+    iter.Ey_error(hEy5,hEy4,f.step.dz);
+    
+    iter.fh_error(hf5,hf4,f.step.dz*f.step.dvx*f.step.dvy*f.step.dvz);
 
-    double Lv_error = 0.;
-    for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
-      for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
-        for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
-          for ( auto i=0u ; i<c.Nz ; ++i ) {
-            Lv_error += std::abs(hf5[k_x][k_y][k_z][i]-hf4[k_x][k_y][k_z][i]);
-          }
-        }
-      }
-    }
-    Lv_error *= f.step.dvx*f.step.dvy*f.step.dvz*f.step.dz;
+    iter.success = ( iter.error() <= c.tol ); // || (  iter.dt <= 0.501*dt_cfl_maxwell  );
 
-    if ( std::abs(Lz_error+Lv_error - c.tol) <= c.tol ) {
+    std::cout << " -- " << iteration_4d::error(iter) << std::flush;
+    iterations.push_back(iter);
+    moni_iter.push();
+
+    //if ( iter.dt < 1e-2 ) { iter.success = true; } // if dt is too small iteration is accepted
+
+    if ( iter.success ) {
       // iteration is accepted, copy all variables for the next iteration
+      success_iter.push_back(iter);
 
       // copy space variables
       for ( auto i=0u ; i<c.Nz ; ++i ) {
-        hjcx[i] = hjcx5[i];
-        hjcy[i] = hjcy5[i];
-        hBx[i]  = hBx5[i];
-        hBy[i]  = hBy5[i];
-        hEx[i]  = hEx5[i];
-        hEy[i]  = hEy5[i];
+        hjcx[i] = hjcx4[i];
+        hjcy[i] = hjcy4[i];
+        hBx[i]  = hBx4[i];
+        hBy[i]  = hBy4[i];
+        hEx[i]  = hEx4[i];
+        hEy[i]  = hEy4[i];
       }
       // copy phase space variable
-      std::copy( hf5.data() , hf5.data()+hf5.num_elements() , hf.data() );
+      std::copy( hf4.data() , hf4.data()+hf4.num_elements() , hf.data() );
 
       fft::ifft(hEx.begin(),hEx.end(),Ex.begin());
       fft::ifft(hEy.begin(),hEy.end(),Ey.begin());
@@ -947,66 +987,21 @@ main ( int argc , char const * argv[] )
       Bxmax.push_back( max_abs(Bx) );
       Bymax.push_back( max_abs(By) );
 
-      //TODO: revoir comment faire ça un peu mieux, avec une struct iter comme en 1dx1dv
-      current_t += dt;
-      times.push_back(current_t);
+      ++(iter.iter); // increment current time and iteration number
+      iter.current_time += iter.dt;
+      times.push_back(iter.current_time);
       moni.push();
-      ++iteration_t;
-
-      // compute new dt
-      dt = std::pow( c.tol/(Lz_error+Lv_error) , 0.25 )*dt;
-      if ( next_snapshot != c.snaptimes.end() && current_time+dt > *next_snapshot ) { dt = *next_snapshot - current_time; }
-      if ( current_time+dt > c.Tf ) { dt = c.Tf - current_time; }
-
-      // snapshot
-      if ( next_snapshot != c.snaptimes.end() && current_t == *next_snapshot ) { // if snapshot
-        std::stringstream filename;
-
-        // compute some integrals on f
-        std::tie(fdvxdvydz,vxfdv,vyfdv,vzfdv) = compute_integrals( hf , current_t );
-        filename << "fdvxdvydz_" << c.name << "_" << current_t << ".dat";
-        c << monitoring::make_data( filename.str() , fdvxdvydz , printer__vz_y );
-        filename.str("");
-
-        filename << "jhxyz_" << c.name << "_" << current_t << ".dat";
-        auto printer__z_jh = [&,count=0] (auto const& y) mutable {
-          std::stringstream ss; ss<<(count)*f.step.dz + f.range.z_min<<" "<<vxfdv[count]<<" "<<vyfdv[count]<<" "<<vzfdv[count];
-          ++count;
-          return ss.str();
-        };
-        c << monitoring::make_data( filename.str() , vxfdv , printer__z_jh );
-        filename.str("");
-
-        // compute local kinetic energy
-        std::tie(ec_perp,ec_vz) = compute_local_kinetic_energy( hf );
-        filename << "keh_"<< c.name << "_" << current_t << ".dat";
-        auto printer__z_ec = [&,count=0] (auto const& y) mutable {
-          std::stringstream ss; ss<<(count)*f.step.dz + f.range.z_min<<" "<<ec_perp[count]<<" "<<ec_vz[count];
-          ++count;
-          return ss.str();
-        };
-        c << monitoring::make_data( filename.str() , ec_perp , printer__z_ec );
-        filename.str("");
-
-        // compute density
-        rho_h = compute_rho_h( hf );
-        filename << "rhoh_"<< c.name << "_" << current_t << ".dat";
-        c << monitoring::make_data( filename.str() , ec_perp , printer__z_y );
-        filename.str("");
-
-        // print electric and magnetic fields
-        filename << "EBjxy_"<< c.name << "_" << current_t << ".dat";
-        auto printer__z_EBxy = [&,count=0] (auto const& y) mutable {
-          std::stringstream ss; ss<<(count)*f.step.dz + f.range.z_min<<" "<<Ex[count]<<" "<<Ey[count]<<" "<<Bx[count]<<" "<<By[count]<<" "<<jcx[count]<<" "<<jcy[count];
-          ++count;
-          return ss.str();
-        };
-        c << monitoring::make_data( filename.str() , Ex , printer__z_EBxy );
-
-        ++next_snapshot;
-      }
+      moni_success_iter.push();
+    } else {
+      ++iter.iter;
     }
 
+    // compute new dt
+    double dt_opt = std::pow( c.tol/(iter.error()) , 0.25 )*iter.dt;
+    iter.dt = std::min( std::max( dt_opt , 0.5*dt_cfl_maxwell ) , 3.0*dt_cfl_maxwell );
+        
+    //if ( next_snapshot != c.snaptimes.end() && iter.current_time+iter.dt > *next_snapshot ) { iter.dt = *next_snapshot - iter.current_time; }
+    if ( iter.current_time+iter.dt > c.Tf ) { iter.dt = c.Tf - iter.current_time; }
   }
 
   auto writer_t_y = [&,count=0] (auto const& y) mutable {
@@ -1022,4 +1017,5 @@ main ( int argc , char const * argv[] )
 
   return 0;
 }
+
 

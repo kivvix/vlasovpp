@@ -492,42 +492,4 @@ operator << ( std::ostream & os , field<_T,NumDimsV> const& f )
   return os;
 }
 
-#define SQ(X) ((X)*(X))
-
-template < typename _T , std::size_t NumDimsV >
-_T
-energy ( field<_T,NumDimsV> const& f , ublas::vector<_T> const& E )
-{
-  _T H = double{0.};
-
-  for ( typename field<_T,NumDimsV>::size_type k=0 ; k<f.size(0) ; ++k ) {
-    for ( typename field<_T,NumDimsV>::size_type i=0 ; i<f.size_x() ; ++i ) {
-      H += SQ( (_T(k)*f.step.dv+f.range.v_min) ) * f[k][i] * f.step.dv*f.step.dx;
-    }
-  }
-
-  for ( auto it=E.begin() ; it!=E.end() ; ++it ) {
-    H += SQ(*it)*f.step.dx;
-  }
-
-  return H;
-}
-
-template < typename _T , std::size_t NumDimsV >
-_T
-kinetic_energy ( field<_T,NumDimsV> const& f )
-{
-  _T Ec = double{0.};
-
-  for ( typename field<_T,NumDimsV>::size_type k=0 ; k<f.size(0) ; ++k ) {
-    for ( typename field<_T,NumDimsV>::size_type i=0 ; i<f.size_x() ; ++i ) {
-      Ec += SQ( (_T(k)*f.step.dv+f.range.v_min) ) * f[k][i] * f.step.dv*f.step.dx;
-    }
-  }
-
-  return Ec;
-}
-
-#undef SQ
-
 #endif

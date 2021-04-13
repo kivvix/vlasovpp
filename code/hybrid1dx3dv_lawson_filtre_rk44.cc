@@ -55,7 +55,7 @@ main ( int argc , char const * argv[] )
   auto c = config(p);
   c.create_output_directory();
 
-  c.name = "vmhllf4";
+  c.name = "vmhllf_rk44";
 
   std::string escape;
   if ( argc > 2 ) { std::size_t line = std::stoul(argv[2]); std::stringstream sescape; sescape << "\033[" << line << ";0H"; escape = sescape.str(); }
@@ -143,7 +143,32 @@ main ( int argc , char const * argv[] )
   ublas::vector<double> vxfdv(c.Nz,0.), vyfdv(c.Nz,0.), vzfdv(c.Nz,0.);
   ublas::vector<double> ec_perp(c.Nz,0.), ec_vz(c.Nz,0.);
   ublas::vector<double> rho_h(c.Nz,0.);
+  field<double,1> fdvxdvy(boost::extents[c.Nvz][c.Nz]); // 2d field, 1dz-1dvz
 
+  auto compute_vperp_integral = [&]( const complex_field<double,3> & hf , double current_t ) {
+    field<double,1> fdvxdvy(boost::extents[c.Nvz][c.Nz]); // 2d field, 1dz-1dvz
+    fdvxdvy.range.v_min = f.range.vz_min; fdvxdvy.range.v_max = f.range.vz_max;
+    fdvxdvy.range.x_min = f.range.z_min;  fdvxdvy.range.x_max = f.range.z_max;
+    fdvxdvy.compute_steps();
+
+    ublas::vector<double> fvxvyvz(c.Nz,0.);
+
+    for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
+      double v_x = k_x*f.step.dvx + f.range.vx_min;
+      for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
+        double v_y = k_y*f.step.dvy + f.range.vy_min;
+        for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
+          double vz = k_z*f.step.dvz + f.range.vz_min;
+          fft::ifft( hf[k_x][k_y][k_z].begin() , hf[k_x][k_y][k_z].end() , fvxvyvz.begin() );
+          for ( auto i=0u ; i<c.Nz ; ++i ) {
+            fdvxdvy[k_z][i] = fvxvyvz[i]*f.step.dvx*f.step.dvy;
+          }
+        }
+      }
+    }
+
+    return fdvxdvy;
+  };
   auto compute_integrals = [&]( const complex_field<double,3> & hf , double current_t ) {
     ublas::vector<double> fdvxdvydz(c.Nvz,0.);
     ublas::vector<double> vxfdv(c.Nz,0.);
@@ -819,9 +844,14 @@ main ( int argc , char const * argv[] )
       std::tie(fdvxdvydz,vxfdv,vyfdv,vzfdv) = compute_integrals( hf , current_t );
       std::stringstream filename; filename << "fdvxdvydz_" << c.name << "_" << iteration_t << ".dat";
       c << monitoring::make_data( filename.str() , fdvxdvydz , printer__vz_y );
-      filename.str("");
-      filename; filename << "jhxyz_" << c.name << "_" << iteration_t << ".dat";
 
+      fdvxdvy = compute_vperp_integral( hf , current_t );
+      filename.str("");
+      filename << "fdvxdvy_" << c.name << "_" << iteration_t << ".dat";
+      fdvxdvy.write( c.output_dir / filename.str() );
+
+      filename.str("");
+      filename << "jhxyz_" << c.name << "_" << iteration_t << ".dat";
       auto printer__z_jh = [&,count=0] (auto const& y) mutable {
         std::stringstream ss; ss<<(count)*f.step.dz + f.range.z_min<<" "<<vxfdv[count]<<" "<<vyfdv[count]<<" "<<vzfdv[count];
         ++count;

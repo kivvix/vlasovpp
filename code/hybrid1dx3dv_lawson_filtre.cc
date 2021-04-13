@@ -143,7 +143,32 @@ main ( int argc , char const * argv[] )
   ublas::vector<double> vxfdv(c.Nz,0.), vyfdv(c.Nz,0.), vzfdv(c.Nz,0.);
   ublas::vector<double> ec_perp(c.Nz,0.), ec_vz(c.Nz,0.);
   ublas::vector<double> rho_h(c.Nz,0.);
+  field<double,1> fdvxdvy(boost::extents[c.Nvz][c.Nz]); // 2d field, 1dz-1dvz
 
+  auto compute_vperp_integral = [&]( const complex_field<double,3> & hf , double current_t ) {
+    field<double,1> fdvxdvy(boost::extents[c.Nvz][c.Nz]); // 2d field, 1dz-1dvz
+    fdvxdvy.range.v_min = f.range.vz_min; fdvxdvy.range.v_max = f.range.vz_max;
+    fdvxdvy.range.x_min = f.range.z_min;  fdvxdvy.range.x_max = f.range.z_max;
+    fdvxdvy.compute_steps();
+
+    ublas::vector<double> fvxvyvz(c.Nz,0.);
+
+    for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
+      double v_x = k_x*f.step.dvx + f.range.vx_min;
+      for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
+        double v_y = k_y*f.step.dvy + f.range.vy_min;
+        for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
+          double vz = k_z*f.step.dvz + f.range.vz_min;
+          fft::ifft( hf[k_x][k_y][k_z].begin() , hf[k_x][k_y][k_z].end() , fvxvyvz.begin() );
+          for ( auto i=0u ; i<c.Nz ; ++i ) {
+            fdvxdvy[k_z][i] = fvxvyvz[i]*f.step.dvx*f.step.dvy;
+          }
+        }
+      }
+    }
+
+    return fdvxdvy;
+  };
   auto compute_integrals = [&]( const complex_field<double,3> & hf , double current_t ) {
     ublas::vector<double> fdvxdvydz(c.Nvz,0.);
     ublas::vector<double> vxfdv(c.Nz,0.);
@@ -219,11 +244,13 @@ main ( int argc , char const * argv[] )
   };
 
   auto printer__vz_y = [&,count=0] (auto const& y) mutable {
-    std::stringstream ss; ss<<(count++)*f.step.dvz + f.range.vz_min<<" "<<y;
+    std::stringstream ss; ss.precision(15);
+    ss<<(count++)*f.step.dvz + f.range.vz_min<<" "<<y;
     return ss.str();
   };
   auto printer__z_y = [&,count=0] (auto const& y) mutable {
-    std::stringstream ss; ss<<(count++)*f.step.dz + f.range.z_min<<" "<<y;
+    std::stringstream ss; ss.precision(15);
+    ss<<(count++)*f.step.dz + f.range.z_min<<" "<<y;
     return ss.str();
   };
 
@@ -342,7 +369,7 @@ main ( int argc , char const * argv[] )
       hjhy[0] = 0.0;
 
       // compute hjcx1,hjcy1,hBx1,hBy1,hEx1,hEy1 (all spatial values)
-      #pragma omp parallel for
+      //#pragma omp parallel for
       for ( auto i=0u ; i<c.Nz ; ++i ) {
         hjcx1[i] = -0.970142500145332*dt*(-1.*hjhx[i] + I*Kz[i]*hBy[i])*(std::sin(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + std::sin(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 0.970142500145332*dt*(-1.*std::cos(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)) + std::cos(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)))*(I*Kz[i]*hBx[i] + hjhy[i]) + 0.970142500145332*hEx[i]*(std::sin(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + std::sin(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 0.970142500145332*hEy[i]*(-1.*std::cos(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)) + std::cos(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.))) + 1.0*hjcx[i]*(0.378732187481834*std::cos(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.621267812518167*std::cos(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 1.0*hjcy[i]*(0.378732187481834*std::sin(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.621267812518167*std::sin(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)));
         // ---
@@ -399,7 +426,7 @@ main ( int argc , char const * argv[] )
       fft::ifft(hBx.begin(),hBx.end(),Bx.begin());
       fft::ifft(hBy.begin(),hBy.end(),By.begin());
       // compute approximation of (E×vB)∂ᵥf
-      #pragma omp parallel for collapse(4)
+      //#pragma omp parallel for collapse(4)
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
@@ -422,7 +449,7 @@ main ( int argc , char const * argv[] )
 
       // update hf1
       ublas::vector<std::complex<double>> hfvxvyvz(c.Nz,0.0);
-      #pragma omp parallel for collapse(3) firstprivate(hfvxvyvz)
+      //#pragma omp parallel for collapse(3) firstprivate(hfvxvyvz)
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
@@ -461,7 +488,7 @@ main ( int argc , char const * argv[] )
       hjhy[0] = 0.0;
 
       // compute hjcx2,hjcy2,hBx2,hBy2,hEx2,hEy2 (all spatial values)
-      #pragma omp parallel for
+      //#pragma omp parallel for
       for ( auto i=0u ; i<c.Nz ; ++i ) {
         hjcx2[i] = 0.25*dt*(-1.*hjhx[i] + I*Kz[i]*hBy1[i])*(0.970142500145332*std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.970142500145332*std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 0.242535625036333*dt*(-1.*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)) + std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)))*(I*Kz[i]*hBx1[i] + hjhy[i]) - 1.0*hEx1[i]*(0.242535625036333*std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.242535625036333*std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 0.727606875108999*hEx[i]*(std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 0.242535625036333*hEy1[i]*(-1.*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)) + std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.))) - 0.727606875108999*hEy[i]*(-1.*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)) + std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.))) + 1.0*hjcx1[i]*(0.0946830468704584*std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.155316953129542*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 1.0*hjcx[i]*(0.284049140611375*std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.465950859388625*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 1.0*hjcy1[i]*(0.0946830468704584*std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.155316953129542*std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 1.0*hjcy[i]*(0.284049140611375*std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.465950859388625*std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)));
         // ---
@@ -518,7 +545,7 @@ main ( int argc , char const * argv[] )
       fft::ifft(hBx1.begin(),hBx1.end(),Bx.begin());
       fft::ifft(hBy1.begin(),hBy1.end(),By.begin());
       // compute approximation of (E×vB)∂ᵥf
-      #pragma omp parallel for collapse(4)
+      //#pragma omp parallel for collapse(4)
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
@@ -541,7 +568,7 @@ main ( int argc , char const * argv[] )
 
       // update hf2
       ublas::vector<std::complex<double>> hfvxvyvz(c.Nz,0.0);
-      #pragma omp parallel for collapse(3) firstprivate(hfvxvyvz)
+      //#pragma omp parallel for collapse(3) firstprivate(hfvxvyvz)
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
@@ -580,7 +607,7 @@ main ( int argc , char const * argv[] )
       hjhy[0] = 0.0;
 
       // update hjcx,hjcy,hBx,hBy,hEx,hEy (all spatial values)
-      #pragma omp parallel for
+      //#pragma omp parallel for
       for ( auto i=0u ; i<c.Nz ; ++i ) {
         auto hjcx_tmp = -0.646761666763555*dt*(-1.*hjhx[i] + I*Kz[i]*hBy2[i])*(std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 0.646761666763555*dt*(-1.*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)) + std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)))*(I*Kz[i]*hBx2[i] + hjhy[i]) + 0.646761666763555*hEx2[i]*(std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 0.323380833381777*hEx[i]*(std::sin(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + std::sin(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) - 0.646761666763555*hEy2[i]*(-1.*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)) + std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.))) - 0.323380833381777*hEy[i]*(-1.*std::cos(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)) + std::cos(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.))) + 1.0*hjcx2[i]*(0.252488124987889*std::cos(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.414178541678778*std::cos(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 1.0*hjcx[i]*(0.126244062493945*std::cos(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) + 0.207089270839389*std::cos(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 1.0*hjcy2[i]*(0.252488124987889*std::sin(0.75*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.414178541678778*std::sin(0.75*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.))) + 1.0*hjcy[i]*(0.126244062493945*std::sin(1.5*dt*std::sqrt(-0.222222222222222*std::sqrt(17.) + 2.)) - 0.207089270839389*std::sin(1.5*dt*std::sqrt(0.222222222222222*std::sqrt(17.) + 2.)));
         // ---
@@ -644,7 +671,7 @@ main ( int argc , char const * argv[] )
       fft::ifft(hBx2.begin(),hBx2.end(),Bx.begin());
       fft::ifft(hBy2.begin(),hBy2.end(),By.begin());
       // compute approximation of (E×vB)∂ᵥf
-      #pragma omp parallel for collapse(4)
+      //#pragma omp parallel for collapse(4)
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
@@ -667,7 +694,7 @@ main ( int argc , char const * argv[] )
 
       // update hf
       ublas::vector<std::complex<double>> hfvxvyvz(c.Nz,0.0);
-      #pragma omp parallel for collapse(3) firstprivate(hfvxvyvz)
+      //#pragma omp parallel for collapse(3) firstprivate(hfvxvyvz)
       for ( auto k_x=0u ; k_x<c.Nvx ; ++k_x ) {
         for ( auto k_y=0u ; k_y<c.Nvy ; ++k_y ) {
           for ( auto k_z=0u ; k_z<c.Nvz ; ++k_z ) {
@@ -710,9 +737,14 @@ main ( int argc , char const * argv[] )
       std::tie(fdvxdvydz,vxfdv,vyfdv,vzfdv) = compute_integrals( hf , current_t );
       std::stringstream filename; filename << "fdvxdvydz_" << c.name << "_" << iteration_t << ".dat";
       c << monitoring::make_data( filename.str() , fdvxdvydz , printer__vz_y );
-      filename.str("");
-      filename; filename << "jhxyz_" << c.name << "_" << iteration_t << ".dat";
 
+      fdvxdvy = compute_vperp_integral( hf , current_t );
+      filename.str("");
+      filename << "fdvxdvy_" << c.name << "_" << iteration_t << ".dat";
+      fdvxdvy.write( c.output_dir / filename.str() );
+
+      filename.str("");
+      filename << "jhxyz_" << c.name << "_" << iteration_t << ".dat";
       auto printer__z_jh = [&,count=0] (auto const& y) mutable {
         std::stringstream ss; ss<<(count)*f.step.dz + f.range.z_min<<" "<<vxfdv[count]<<" "<<vyfdv[count]<<" "<<vzfdv[count];
         ++count;
@@ -729,10 +761,8 @@ main ( int argc , char const * argv[] )
         return ss.str();
       };
       c << monitoring::make_data( filename.str() , ec_perp , printer__z_ec );
+      c << monitoring::make_data( filename.str() , ec_perp , printer__z_y );
 
-      rho_h = compute_rho_h( hf );
-      filename.str("");
-      filename << "rhoh_"<< c.name << "_" << iteration_t << ".dat";
       c << monitoring::make_data( filename.str() , ec_perp , printer__z_y );
 
       filename.str("");

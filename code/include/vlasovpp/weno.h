@@ -180,25 +180,23 @@ using namespace boost::numeric;
   @param `boost::zip_iterator<IteratorTuple> f_it` a `boost::zip_iterator` of length 6 on $(f_{i,k-2},\dots,f_{i,k+3})$ values
   @return a pair of flux plus and minus
 **/
-template < typename IteratorTuple >
+template < typename _T >
 auto
-local_flux ( boost::zip_iterator<IteratorTuple> const& f_it )
+local_flux ( _T fim2 , _T fim1 , _T fi , _T fip1 , _T fip2 , _T fip3 )
 {
-  typedef typename std::remove_cv<typename std::remove_reference<decltype(f_it->template get<0>())>::type>::type _T; // récupération du type stocké dans le premier itérateur du zip_iterator (sans const ni reference)
-
   // $f_{i,k+1/2}^+$
   _T w0p = 0.1, w1p = 0.6, w2p = 0.3;
 
-  _T fikp12p = w0p*( (2./6.)*f_it->template get<0>() - (7./6.)*f_it->template get<1>() + (11./6.)*f_it->template get<2>() )
-             + w1p*(-(1./6.)*f_it->template get<1>() + (5./6.)*f_it->template get<2>() +  (2./6.)*f_it->template get<3>() )
-             + w2p*( (2./6.)*f_it->template get<2>() + (5./6.)*f_it->template get<3>() -  (1./6.)*f_it->template get<4>() );
+  _T fikp12p = w0p*( (2./6.)*fim2 - (7./6.)*fim1 + (11./6.)*fi   )
+             + w1p*(-(1./6.)*fim1 + (5./6.)*fi   +  (2./6.)*fip1 )
+             + w2p*( (2./6.)*fi   + (5./6.)*fip1 -  (1./6.)*fip2 );
 
   // $f_{i,k+1/2}^-$
   _T w0m = 0.1, w1m = 0.6, w2m = 0.3;
 
-  _T fikp12m = w2m*(-(1./6.)*f_it->template get<1>() + (5./6.)*f_it->template get<2>() + (2./6.)*f_it->template get<3>() )
-             + w1m*( (2./6.)*f_it->template get<2>() + (5./6.)*f_it->template get<3>() - (1./6.)*f_it->template get<4>() )
-             + w0m*((11./6.)*f_it->template get<3>() - (7./6.)*f_it->template get<4>() + (2./6.)*f_it->template get<5>() );
+  _T fikp12m = w2m*(-(1./6.)*fim1 + (5./6.)*fi   + (2./6.)*fip1 )
+             + w1m*( (2./6.)*fi   + (5./6.)*fip1 - (1./6.)*fip2 )
+             + w0m*((11./6.)*fip1 - (7./6.)*fip2 + (2./6.)*fip3 );
   
   // return a pair of fluxes, one loop on the data structure for two fluxes
   return std::make_pair(fikp12p,fikp12m);
@@ -219,20 +217,38 @@ flux ( field<_T,NumDimsV> const& u )
 
   for ( std::size_t k=0 ; k<2 ; ++k ) {
     std::size_t i=0;
-    for ( auto it = u.begin_border_stencil(k) ; it != u.end_border_stencil(k) ; ++it , ++i ) {
-      fikp12[k][i] = local_flux(it);
+    auto begin = u.begin_border_stencil(k);
+    auto end   = std::get<0>(u.end_border_stencil(k));
+    boost::detail::multi_array::array_iterator<_T, const _T*, mpl_::size_t<NumDimsV>, const _T&, boost::iterators::random_access_traversal_tag> it_im2,it_im1,it_i,it_ip1,it_ip2,it_ip3;
+    std::tie(it_im2,it_im1,it_i,it_ip1,it_ip2,it_ip3) = begin;
+    //for ( auto it = u.begin_border_stencil(k) ; it != u.end_border_stencil(k) ; ++it , ++i ) {
+    for (  ; it_im2 != end ; ++it_im2,++it_im1,++it_i,++it_ip1,++it_ip2,++it_ip3 , ++i ) {
+      //fikp12[k][i] = local_flux(it);
+      fikp12[k][i] = local_flux(*it_im2,*it_im1,*it_i,*it_ip1,*it_ip2,*it_ip3);
     }
   }
   for ( std::size_t k=2 ; k<u.size(0)-3 ; ++k ) {
     std::size_t i=0;
-    for ( auto it = u.begin_stencil(k) ; it != u.end_stencil(k) ; ++it , ++i ) {
-      fikp12[k][i] = local_flux(it);
+    auto begin = u.begin_stencil(k);
+    auto end   = std::get<0>(u.end_stencil(k));
+    boost::detail::multi_array::array_iterator<_T, const _T*, mpl_::size_t<NumDimsV>, const _T&, boost::iterators::random_access_traversal_tag> it_im2,it_im1,it_i,it_ip1,it_ip2,it_ip3;
+    std::tie(it_im2,it_im1,it_i,it_ip1,it_ip2,it_ip3) = begin;
+    //for ( auto it = u.begin_stencil(k) ; it != u.end_stencil(k) ; ++it , ++i ) {
+    for (  ; it_im2 != end ; ++it_im2,++it_im1,++it_i,++it_ip1,++it_ip2,++it_ip3 , ++i ) {
+      //fikp12[k][i] = local_flux(it);
+      fikp12[k][i] = local_flux(*it_im2,*it_im1,*it_i,*it_ip1,*it_ip2,*it_ip3);
     }
   }
   for ( std::size_t k=u.size(0)-3 ; k<u.size(0) ; ++k ) {
     std::size_t i=0;
-    for ( auto it = u.begin_border_stencil(k) ; it != u.end_border_stencil(k) ; ++it , ++i ) {
-      fikp12[k][i] = local_flux(it);
+    auto begin = u.begin_border_stencil(k);
+    auto end   = std::get<0>(u.end_border_stencil(k));
+    boost::detail::multi_array::array_iterator<_T, const _T*, mpl_::size_t<NumDimsV>, const _T&, boost::iterators::random_access_traversal_tag> it_im2,it_im1,it_i,it_ip1,it_ip2,it_ip3;
+    std::tie(it_im2,it_im1,it_i,it_ip1,it_ip2,it_ip3) = begin;
+    //for ( auto it = u.begin_border_stencil(k) ; it != u.end_border_stencil(k) ; ++it , ++i ) {
+    for ( ; it_im2 != end ; ++it_im2,++it_im1,++it_i,++it_ip1,++it_ip2,++it_ip3 , ++i ) {
+      //fikp12[k][i] = local_flux(it);
+      fikp12[k][i] = local_flux(*it_im2,*it_im1,*it_i,*it_ip1,*it_ip2,*it_ip3);
     }
   }
   return fikp12;

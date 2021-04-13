@@ -56,7 +56,7 @@ struct convertor {
       std::stringstream sline; sline<<line; // convert line to stringstream
       std::stringstream key,value;
       sline.get(*key.rdbuf(),' '); sline.get(*value.rdbuf()); // get first field in key, and the rest into value (even if there is spaces)
-      map_config[key.str()] = value.str();
+      map_config[key.str()] = value.str().substr(1); // remove the first space character
     }
     ifs.close();
   }
@@ -113,9 +113,14 @@ struct config {
 
   config ( fs::path && );
 
+  config ( int argc , char** argv , std::string name_="" );
+
   bool
   create_output_directory () const;
 };
+
+void
+save_confg ( const config & c );
 
 // export configuration
 std::ostream &
@@ -123,28 +128,6 @@ operator << ( std::ostream & , const config & );
 
 namespace monitoring
 {
-
-// temporary object to prepare export of data
-// just get a filename, a container and a function to write into file
-template < typename Container , typename Writer >
-struct data
-{
-  fs::path file;
-  const Container * dat;
-  Writer writer;
-
-  data ( fs::path && _file , const Container & _dat ,  Writer _writer )
-    : file(std::move(_file)) , dat(&_dat) , writer(_writer)
-  { ; }
-};
-
-// for older version of `g++` without indication of type like `data<std::vector<double>>`
-// this function works like `std::make_pair`
-template < typename Container , typename Writer >
-data<Container,Writer>
-make_data ( fs::path && _file , const Container & _dat , Writer _writer ) {
-  return data<Container,Writer>(std::move(_file),_dat,_writer);
-}
 
 // class to frequently push data in output files 
 // /!\ WARNING all containers to save needs to be of the same type
@@ -179,9 +162,10 @@ struct reactive_monitoring
     std::transform( std::begin(*ptr_time)+index , std::end(*ptr_time) ,
         std::ostream_iterator<std::string>(file,"\n") ,
         [&]( const auto & t ) mutable {
-          std::stringstream ss; ss << t;
+          std::stringstream ss; ss.precision(15);
+          ss << t;
           for ( const auto & data : arr_data ) {
-            ss << " " << data->at(index);
+            ss << " " << std::setprecision(15) << data->at(index);
           }
           ++index;
           return ss.str();
@@ -190,6 +174,28 @@ struct reactive_monitoring
     file << std::flush;
   }
 };
+
+// temporary object to prepare export of data
+// just get a filename, a container and a function to write into file
+template < typename Container , typename Writer >
+struct data
+{
+  fs::path file;
+  const Container * dat;
+  Writer writer;
+
+  data ( fs::path && _file , const Container & _dat ,  Writer _writer )
+    : file(std::move(_file)) , dat(&_dat) , writer(_writer)
+  { ; }
+};
+
+// for older version of `g++` without indication of type like `data<std::vector<double>>`
+// this function works like `std::make_pair`
+template < typename Container , typename Writer >
+data<Container,Writer>
+make_data ( fs::path && _file , const Container & _dat , Writer _writer ) {
+  return data<Container,Writer>(std::move(_file),_dat,_writer);
+}
 
 } // namespace monitoring
 
