@@ -7,7 +7,7 @@ import dataclasses
 import sympy as sp
 import numpy as np
 
-k = sp.symbols("k")
+k = sp.symbols("k",real=True)
 wpe = 2
 vx,vy,vz = sp.symbols("v_x v_y v_z",real=True)
 
@@ -20,6 +20,17 @@ L = sp.Matrix([
     [ 0 , -1 , 0 , 0 , 0      , 0      ,  0         ],
     [ 0 ,  0 , 0 , 0 , 0      , 0      , -sp.I*k*vz ]
   ])
+
+L = sp.Matrix([
+    [ 0 , -1 , 0      ,  0      ,  wpe**2 , 0      ,  0         ],
+    [ 1 ,  0 , 0      ,  0      ,  0      , wpe**2 ,  0         ],
+    [ 0 ,  0 , 0      ,  0      ,  0      , sp.I*k ,  0         ],
+    [ 0 ,  0 , 0      ,  0      , -sp.I*k , 0      ,  0         ],
+    [-1 ,  0 , 0      , -sp.I*k ,  0      , 0      ,  0         ],
+    [ 0 , -1 , sp.I*k ,  0      ,  0      , 0      ,  0         ],
+    [ 0 ,  0 , 0      ,  0      ,  0      , 0      , -sp.I*k*vz ]
+  ])
+
 
 Ix = sp.Function(r"\int_\mathbb{R}\ v_x")
 Iy = sp.Function(r"\int_\mathbb{R}\ v_y")
@@ -35,6 +46,18 @@ def N(U):
     -sp.I*k*By+Ix(f),
      sp.I*k*Bx+Iy(f),
      df(f)
+  ])
+
+def N(U):
+  jcx,jcy,Bx,By,Ex,Ey,f = (*U,)
+  return sp.Matrix([
+    0,
+    0,
+    0,
+    0,
+    Ix(f),
+    Iy(f),
+    df(f)
   ])
 
 # order of Pade approximant
@@ -90,13 +113,43 @@ def zero(z):
   if is_matrix(z):
     return sp.zeros(z.cols)
   return 0
+
+def submat(M,i,j):
+  N = M.copy()
+  N.row_del(i)
+  N.col_del(j)
+  return N
+
+def det(M,i=0,j=0):
+  n,m = M.shape
+  if n==2 and m==2 :
+    d=M[0,0]*M[1,1] - M[1,0]*M[0,1]
+    return d
+  
+  return sum([
+      ((-1)**( i+i_row+j ))*M[i_row,0]*det(submat(M,i_row,0))
+      for i_row in range(n)
+    ])
+
 def inv(z):
   r"""
     return inverse element ($\frac{1}{z}$ if `z` is a scalar, $z^{-1}$
      if `z` is a matrix)
   """
+  def invert(A):
+    import itertools
+    n,m = A.shape
+    iA = sp.zeros(*A.shape)
+    for i,j in itertools.product(range(n),range(m)):
+      tmp = A.copy()
+      tmp.row_del(i)
+      tmp.col_del(j)
+      iA[j,i] = (-1)**(i+j)*det(tmp)
+    return iA/(det(A))
+
   if is_matrix(z):
-    return z.inv()
+    return invert(z)
+    #return z.inv()
   return 1/z
 
 def pade(n,m):
@@ -122,8 +175,25 @@ def pade(n,m):
       (-1)**j*(fac(q)/fac(q-j)).simplify()/(fac(p+q)/fac(p+q-j)).simplify()*one(x)*x**j/fac(j)
       for j in range(0,q+1)
     ],start=zero(x))
+
+  def log_lambda(z):
+    A = z[:-1,:-1]
+    nb_rows,nb_cols = A.shape
+    print("----> h(n,m)")
+    hnm = h(n,m)(A).evalf()
+    print("----> k(n,m)")
+    knm = k(n,m)(A).evalf()
+    print("----> inv(k(n,m))")
+    iknm = inv(knm)
+    print("----> finish")
+    eA = hnm*iknm
+    return sp.Matrix(sp.BlockMatrix([
+        [ eA , sp.zeros(nb_rows,1) ],
+        [ sp.zeros(1,nb_cols) , sp.Matrix([sp.exp(z[-1,-1])]) ]
+      ]))
   
-  return lambda z: h(n,m)(z)*inv(k(n,m)(z))
+  #return lambda z: h(n,m)(z)*inv(k(n,m)(z))
+  return log_lambda
 
 
 def ms_exp(expr):
@@ -305,11 +375,6 @@ def expr_to_code (expr,symbols_replace,function_replace):
   math_to_stl = [(f,sp.Function("std::"+str(f),nargs=1)) for f in (sp.sin,sp.cos,sp.exp)]
   math_to_stl.append( (sp.sqrt,sp.Function("std::sqrt",nargs=1)) )
 
-  a = sp.Wild('a')
-  def func(expr):
-    print(expr is sp.S.Half,expr)
-    return sp.Float(0.5)
-  
   # first step: replace symbols
   #try:
   #  tmp = sp.simplify(expr.subs(symbols_replace))
@@ -325,6 +390,7 @@ def expr_to_code (expr,symbols_replace,function_replace):
     tmp = tmp.replace(old,new)
 
   # last step: convert all division by 2 by multiplication by 0.5
+  a = sp.Wild('a')  
   tmp = tmp.replace(a/2,0.5*a,exact=True).evalf()
   
   # and return a string
@@ -396,14 +462,13 @@ for stage,nextU,adt in zip([pade_stage_U1,pade_stage_U2,pade_stage_U3,pade_stage
   lhs[-1]  = str(code_nextU[-1])[:-18]
   lhs.dt   = adt
   rhs[:] = [ expr_to_code(line,sym_to_code,fun_to_code) for line in stage ]
-  #rhs[:] = [ "0.+0." for _ in stage ]
 
   list_stages.append( (lhs,rhs) )
 
 print("> code printing")
 frange = f_range()
 env = jinja2.Environment(loader=jinja2.FileSystemLoader("."))
-template = env.get_template("hybrid_stalfos.t.cc")
+template = env.get_template("hybrid_stalfos.jinja.cc")
 
 simu_name = "vmhllf_p{}rk{}{}".format(order_pade,len(list_stages),len(list_stages))
 
