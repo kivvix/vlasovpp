@@ -250,4 +250,5 @@ tags
 # End of https://www.toptal.com/developers/gitignore/api/c++,fortran,linux,macos,vim,python
 
 *.out.dSYM
+*.dat
 
