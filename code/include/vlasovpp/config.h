@@ -113,14 +113,14 @@ struct config {
 
   config ( fs::path && );
 
-  config ( int argc , char** argv , std::string name_="" );
+  config ( int argc , const char** argv , std::string name_="" );
 
   bool
   create_output_directory () const;
 };
 
 void
-save_confg ( const config & c );
+save_config ( const config & c );
 
 // export configuration
 std::ostream &

@@ -89,7 +89,7 @@ config::config( fs::path && path_config )
   output_dir = convert("output_dir","."s);
 }
 
-config::config( int argc , char** argv , std::string name_ )
+config::config( int argc , const char** argv , std::string name_ )
   : name(name_)
 {
   using namespace std::string_literals;
@@ -183,7 +183,7 @@ operator << ( std::ostream & os , const config & c )
 using namespace std::string_literals;
 
 void
-save_confg ( const config & c ) {
+save_config ( const config & c ) {
   std::ofstream of( c.output_dir / ("config_"s + c.name + ".init"s) );
   of << c << "\n";
   of.close();

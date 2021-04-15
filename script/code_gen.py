@@ -21,6 +21,7 @@ L = sp.Matrix([
     [ 0 ,  0 , 0 , 0 , 0      , 0      , -sp.I*k*vz ]
   ])
 
+"""
 L = sp.Matrix([
     [ 0 , -1 , 0      ,  0      ,  wpe**2 , 0      ,  0         ],
     [ 1 ,  0 , 0      ,  0      ,  0      , wpe**2 ,  0         ],
@@ -30,7 +31,7 @@ L = sp.Matrix([
     [ 0 , -1 , sp.I*k ,  0      ,  0      , 0      ,  0         ],
     [ 0 ,  0 , 0      ,  0      ,  0      , 0      , -sp.I*k*vz ]
   ])
-
+"""
 
 Ix = sp.Function(r"\int_\mathbb{R}\ v_x")
 Iy = sp.Function(r"\int_\mathbb{R}\ v_y")
@@ -48,6 +49,7 @@ def N(U):
      df(f)
   ])
 
+"""
 def N(U):
   jcx,jcy,Bx,By,Ex,Ey,f = (*U,)
   return sp.Matrix([
@@ -59,6 +61,7 @@ def N(U):
     Iy(f),
     df(f)
   ])
+"""
 
 # order of Pade approximant
 order_pade = 2
