@@ -109,7 +109,7 @@ struct vperp_integral
   field<_T,1> &
   operator () ( const complex_field<_T,3> & hf )
   {
-    std::iota( fdvxdvy.origin() , fdvxdvy.origin() + fvxvyvz.num_elements() , 0. );
+    std::iota( fdvxdvy.origin() , fdvxdvy.origin() + fdvxdvy.num_elements() , 0. );
 
     for ( auto k_x=0u ; k_x<Nvx ; ++k_x ) {
       for ( auto k_y=0u ; k_y<Nvy ; ++k_y ) {
@@ -123,6 +123,53 @@ struct vperp_integral
     }
  
     return fdvxdvy;
+  }
+
+};
+
+template <typename _T>
+struct z_vz_integral
+{
+  std::size_t Nvx;
+  std::size_t Nvy;
+  std::size_t Nvz;
+  std::size_t Nz;
+  _T dzdvz;
+
+  // computational value
+  ublas::vector<_T> fvxvyvz;
+
+  // computed value
+  field<_T,1> fdzdvz;
+
+  z_vz_integral ( field3d<_T> const& f )
+    : Nvx(f.size(0)) , Nvy(f.size(1)) , Nvz(f.size(2)) , Nz(f.size(3)) ,
+      dzdvz(f.step.dz*f.step.dvz) ,
+      fvxvyvz(f.size(3),0.) ,
+      fdzdvz(boost::extents[f.size(0)][f.size(1)])
+  {
+    fdzdvz.range.v_min = f.range.vx_min; fdzdvz.range.v_max = f.range.vx_max; 
+    fdzdvz.range.x_min = f.range.vy_min; fdzdvz.range.x_max = f.range.vy_max;
+    fdzdvz.compute_steps();
+  }
+
+  field<_T,1> &
+  operator () ( const complex_field<_T,3> & hf )
+  {
+    std::iota( fdzdvz.origin() , fdzdvz.origin() + fdzdvz.num_elements() , 0. );
+
+    for ( auto k_x=0u ; k_x<Nvx ; ++k_x ) {
+      for ( auto k_y=0u ; k_y<Nvy ; ++k_y ) {
+        for ( auto k_z=0u ; k_z<Nvz ; ++k_z ) {
+          fft::ifft( hf[k_x][k_y][k_z].begin() , hf[k_x][k_y][k_z].end() , fvxvyvz.begin() );
+          for ( auto i=0u ; i<Nz ; ++i ) {
+            fdzdvz[k_x][k_y] += fvxvyvz[i] * dzdvz;
+          }
+        }
+      }
+    }
+ 
+    return fdzdvz;
   }
 
 };
