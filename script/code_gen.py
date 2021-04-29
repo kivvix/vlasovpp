@@ -1,339 +1,183 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 
-import os, sys
-import jinja2
+"""{exe}
+
+Usage:
+  ./{exe} (--pade N [M] | --taylor N | --exp ) [--maxwell]
+
+Options:
+  -h, --help              Help! I need somebody
+  -p N [M], --pade N [M]  Write code of Lawson method with Pade approximant of order [N,M] (by default M=N)
+  -t N, --taylor N        Write code of Lawson method with Taylor serie to order N
+  -e, --exp               Write code of Lawson method with a classical exponential (this is incompatible with --maxwell option)
+  -m, --maxwell           If define, the matrix of the linear part contain Maxwell equations
+"""
+
 import dataclasses
 
 import sympy as sp
 import numpy as np
 
-k = sp.symbols("k",real=True)
+# TODO: trouver un moyen de passer ça argument si on veut d'autres valeurs
+@dataclasses.dataclass
+class f_range:
+  vx_max =  3.6
+  vx_min = -3.6
+  vy_max =  3.6
+  vy_min = -3.6
+  vz_max =  2.0
+  vz_min = -2.0
+
+######################################################################
+
+k  = sp.symbols("k",real=True)
+t  = sp.symbols("t",real=True)
+dt = sp.symbols("dt",real=True)
 wpe = 2
 vx,vy,vz = sp.symbols("v_x v_y v_z",real=True)
-
-L = sp.Matrix([
-    [ 0 , -1 , 0 , 0 , wpe**2 , 0      ,  0         ],
-    [ 1 ,  0 , 0 , 0 , 0      , wpe**2 ,  0         ],
-    [ 0 ,  0 , 0 , 0 , 0      , 0      ,  0         ],
-    [ 0 ,  0 , 0 , 0 , 0      , 0      ,  0         ],
-    [-1 ,  0 , 0 , 0 , 0      , 0      ,  0         ],
-    [ 0 , -1 , 0 , 0 , 0      , 0      ,  0         ],
-    [ 0 ,  0 , 0 , 0 , 0      , 0      , -sp.I*k*vz ]
-  ])
-
-"""
-L = sp.Matrix([
-    [ 0 , -1 , 0      ,  0      ,  wpe**2 , 0      ,  0         ],
-    [ 1 ,  0 , 0      ,  0      ,  0      , wpe**2 ,  0         ],
-    [ 0 ,  0 , 0      ,  0      ,  0      , sp.I*k ,  0         ],
-    [ 0 ,  0 , 0      ,  0      , -sp.I*k , 0      ,  0         ],
-    [-1 ,  0 , 0      , -sp.I*k ,  0      , 0      ,  0         ],
-    [ 0 , -1 , sp.I*k ,  0      ,  0      , 0      ,  0         ],
-    [ 0 ,  0 , 0      ,  0      ,  0      , 0      , -sp.I*k*vz ]
-  ])
-"""
 
 Ix = sp.Function(r"\int_\mathbb{R}\ v_x")
 Iy = sp.Function(r"\int_\mathbb{R}\ v_y")
 df = sp.Function(r"(E+v\times B)\cdot\nabla_v")
 
-def N(U):
-  jcx,jcy,Bx,By,Ex,Ey,f = (*U,)
-  return sp.Matrix([
-     0,
-     0,
-     sp.I*k*Ey,
-    -sp.I*k*Ex,
-    -sp.I*k*By+Ix(f),
-     sp.I*k*Bx+Iy(f),
-     df(f)
-  ])
-
-"""
-def N(U):
-  jcx,jcy,Bx,By,Ex,Ey,f = (*U,)
-  return sp.Matrix([
-    0,
-    0,
-    0,
-    0,
-    Ix(f),
-    Iy(f),
-    df(f)
-  ])
-"""
-
-# order of Pade approximant
-order_pade = 2
-
-######################################################################
-######################################################################
-######################################################################
-
-r"""
-In first we define pade approximant with some sugar syntax to help to
- write LRK scheme.
-
-The main goal of opptimize generation of numerical scheme is to eval
- once Pade approximant of linear part and convert it into a function
- in $t$ :
- $$
-   P_{[p.q]}^{A}:t\mapsto P_{[p,q]}(tA) \approx e^{tA}
- $$
- to make it we compute Padé approximant of $e^{tA}$ to user defined
- order, and next substitue $t$ by $\alpha_{j}\Delta t$ coefficients
- from Butcher tableau.
-
-After generation of scheme with `sympy`, we need to convert it into
- C++ code (this is make with substitution in `sympy` expressions) and
- take it in a skeleton of C++ simulation code (with a template engine,
- I use `jinja2` for this).
-"""
-
-def is_matrix(z):
+### approximant exponential
+def taylor(n,):
   r"""
-    return True if `z` is a `sympy`'s matrix (or something like a
-     matrix like `sp.MatrixSymbol` or `sp..MatrixExpr`)
+    return Taylor series of order $n$
   """
-  return ( isinstance(z,sp.Matrix)
-        or isinstance(z,sp.ImmutableDenseMatrix)
-        or isinstance(z,sp.MatrixSymbol)
-        or isinstance(z,sp.MatrixExpr)
-         )
-def one(z):
-  r"""
-    return unit element (1 if `z` is a scalar or `sp.eye` if `z` is a
-     matrix)
-  """
-  if is_matrix(z):
-    return sp.eye(z.cols)
-  return 1
-def zero(z):
-  r"""
-    return zero element (0 if `z` is a scalar or `sp.zeros` if `z` is
-     a matrix)
-  """
-  if is_matrix(z):
-    return sp.zeros(z.cols)
-  return 0
+  def r_lambda(M):
+    _N = M[:-1,:-1]
+    nb_rows,nb_cols = _N.shape
+    fac = sp.factorial
+    eN = sum([
+        _N**i/fac(i)
+        for i in range(0,n+1)
+      ],start=sp.zeros(*_N.shape))
+    return sp.Matrix(sp.BlockMatrix([
+        [ eN , sp.zeros(nb_rows,1) ],
+        [ sp.zeros(1,nb_cols) , sp.Matrix([sp.exp(M[-1,-1])]) ]
+      ]))
+
+  return r_lambda
 
 def submat(M,i,j):
+  """
+    return a copy of matrix `M` whitout row `i` and column `j`
+  """
   N = M.copy()
   N.row_del(i)
   N.col_del(j)
   return N
-
 def det(M,i=0,j=0):
+  """
+    compute determinant of M with naive implementation
+  """
   n,m = M.shape
   if n==2 and m==2 :
     d=M[0,0]*M[1,1] - M[1,0]*M[0,1]
     return d
-  
   return sum([
       ((-1)**( i+i_row+j ))*M[i_row,0]*det(submat(M,i_row,0))
       for i_row in range(n)
     ])
 
-def inv(z):
+def invert(M):
   r"""
-    return inverse element ($\frac{1}{z}$ if `z` is a scalar, $z^{-1}$
-     if `z` is a matrix)
+    invert a matrix `M` with naive formula :
+    $$
+      M^{-1} = \frac{1}{\det(M)}^t\textrm{com}(M)
+    $$
   """
-  def invert(A):
-    import itertools
-    n,m = A.shape
-    iA = sp.zeros(*A.shape)
-    for i,j in itertools.product(range(n),range(m)):
-      tmp = A.copy()
-      tmp.row_del(i)
-      tmp.col_del(j)
-      iA[j,i] = (-1)**(i+j)*det(tmp)
-    return iA/(det(A))
-
-  if is_matrix(z):
-    return invert(z)
-    #return z.inv()
-  return 1/z
+  import itertools
+  n,m = M.shape
+  invM = sp.zeros(*M.shape)
+  for i,j in itertools.product(range(n),range(m)):
+    tmp = M.copy()
+    tmp.row_del(i)
+    tmp.col_del(j)
+    invM[j,i] = (-1)**(i+j)*det(tmp)
+  return invM/(det(M))
 
 def pade(n,m):
   r"""
     return Padé approximant of order $(n,m)$
   """
-  def h(p,q):
+  def _h(p,q):
     r"""
       return numerator of rational approximant of Padé
     """
     fac = sp.factorial
-    return lambda x : sum([
-      ((fac(p)/fac(p-i)).simplify()/(fac(p+q)/fac(p+q-i)).simplify()*one(x)*x**i/fac(i))
+    return lambda M : sum([
+      ((fac(p)/fac(p-i)).simplify()/(fac(p+q)/fac(p+q-i)).simplify()*M**i/fac(i))
       for i in range(0,p+1)
-    ],start=zero(x))
+    ],start=sp.zeros(*M.shape))
 
-  def k(p,q):
+  def _k(p,q):
     r"""
       return denominator of rational approximant of Padé
     """
     fac = sp.factorial
-    return lambda x : sum([
-      (-1)**j*(fac(q)/fac(q-j)).simplify()/(fac(p+q)/fac(p+q-j)).simplify()*one(x)*x**j/fac(j)
+    return lambda M : sum([
+      (-1)**j*(fac(q)/fac(q-j)).simplify()/(fac(p+q)/fac(p+q-j)).simplify()*M**j/fac(j)
       for j in range(0,q+1)
-    ],start=zero(x))
+    ],start=sp.zeros(*M.shape))
 
-  def log_lambda(z):
-    A = z[:-1,:-1]
-    nb_rows,nb_cols = A.shape
-    print("----> h(n,m)")
-    hnm = h(n,m)(A).evalf()
-    print("----> k(n,m)")
-    knm = k(n,m)(A).evalf()
-    print("----> inv(k(n,m))")
-    iknm = inv(knm)
-    print("----> finish")
-    eA = hnm*iknm
+  def r_lambda(M):
+    _N = M[:-1,:-1]
+    nb_rows,nb_cols = _N.shape
+    hnm = _h(n,m)(_N).evalf()
+    knm = _k(n,m)(_N).evalf()
+    iknm = sp.refine(invert(knm),sp.Q.integer(k))
+    eN = sp.refine(sp.simplify(hnm)*iknm,sp.Q.integer(k))
     return sp.Matrix(sp.BlockMatrix([
-        [ eA , sp.zeros(nb_rows,1) ],
-        [ sp.zeros(1,nb_cols) , sp.Matrix([sp.exp(z[-1,-1])]) ]
+        [ eN                  , sp.zeros(nb_rows,1)           ],
+        [ sp.zeros(1,nb_cols) , sp.Matrix([sp.exp(M[-1,-1])]) ]
       ]))
-  
-  #return lambda z: h(n,m)(z)*inv(k(n,m)(z))
-  return log_lambda
 
+  return r_lambda
 
-def ms_exp(expr):
+### functions to write vectorial scheme
+def my_exp(L,t,k):
   """
-    matrix symbol exponential
-
-    I wrote this function because `sympy` doesn't work with
-     exponential of a `sp.MatrixSymbol` (it returns a scalar...). This
-     is not really easy to use, but it works with some sugar functions
-     it does the job. Next I could replace every `sp.MatrixSymbol`
-     with any exponential function (real exponential function of Padé
-     approximant).
+    In fact we don't need to a `sp.MatrixSymbol` exponential
+    We only need to return a matrix of function : (`matrix_ij(dt,k)`)_{i,j}
   """
-  mexp = sp.MatrixSymbol((r"e^{"+sp.latex(expr)+r"}").replace(" ",r"\ "),*(expr).shape)
-  mexp.arg = expr
-  return mexp
+  nb_cols,nb_rows = L.shape
+  matExp = sp.Matrix(sp.BlockMatrix([
+      [ sp.Matrix([ [ sp.Function("matrixExpr{}{}".format(i,j))(t,k) for j in range(nb_cols-1) ] for i in range(nb_rows-1) ]) , sp.zeros(nb_rows-1,1) ],
+      [ sp.zeros(1,nb_cols-1) , sp.Matrix([ sp.exp(t*L[-1,-1]) ]) ]
+    ]))
+  return matExp
 
-def ems_args(*arg):
-  """
-    exponential matrix symbol arguments
-  """
-  s = str(arg[0])[3:-1].replace(r"\ "," ").replace(r"\left(","").replace(r"\right)","")
-  from sympy.parsing.latex import parse_latex
-  return parse_latex(s)
+### to help to define stages
+def space_variables_idx (stage_name):
+  return [
+    sp.symbols( "{var}{stage}[i]".format(var=var,stage=stage_name) )
+    for var in ("hjcx","hjcy","hBx","hBy","hEx","hEy")
+  ]
+def phase_variables_idx (stage_name):
+  return [
+    sp.symbols( "{var}{stage}[k_x][k_y][k_z][i]".format(var=var,stage=stage_name) )
+    for var in ["hf"]
+  ]
+def vectors_stages_idx ( stages_names ):
+  return [
+    sp.Matrix(
+      space_variables_idx(stage) + phase_variables_idx(stage)
+    )
+    for stage in stages_names
+  ]
 
-def ems_subs(A,B):
-  """
-    exponential matrix symbol substitution
-    substitue matrix A into B in arguments of an ems
-    return lambda which only returns arguments substituion
-  """
-  return lambda *arg : ems_args(*arg).subs(sp.symbols(str(A)),B)
+def vectors_stages ( stages_names ):
+  return [
+    sp.Matrix([
+      sp.symbols( "{var}{stage}".format(var=var,stage=stage) )
+      for var in ("hjcx","hjcy","hBx","hBy","hEx","hEy","hf")
+    ])
+    for stage in stages_names
+  ]
 
-def ems_func(lamb,func):
-  """
-    exponential matrix symbol function
-    get an already define lambda (lamb) substitution
-    and apply user define function (func)
-  """
-  return lambda *arg : func(lamb(*arg))
-
-
-######################################################################
-# We write our scheme here ###########################################
-######################################################################
-
-r"""
-compute scheme with a symbolic matrix `sm_L`
-"""
-dt = sp.symbols("dt")
-sm_L = sp.MatrixSymbol("L",*L.shape)
-
-jxn,jyn = sp.symbols(r"j_{c\,x}^n j_{c\,y}^n")
-Bxn,Byn = sp.symbols(r"B_x^n B_y^n")
-Exn,Eyn = sp.symbols(r"E_x^n E_y^n")
-fn = sp.symbols(r"\hat{f}^n")
-Un = sp.Matrix([jxn,jyn,Bxn,Byn,Exn,Eyn,fn])
-
-jx1,jy1 = sp.symbols(r"j_{c\,x}^{(1)} j_{c\,y}^{(1)}")
-Bx1,By1 = sp.symbols(r"B_x^{(1)} B_y^{(1)}")
-Ex1,Ey1 = sp.symbols(r"E_x^{(1)} E_y^{(1)}")
-f1 = sp.symbols(r"\hat{f}^{(1)}")
-U1 = sp.Matrix([jx1,jy1,Bx1,By1,Ex1,Ey1,f1])
-
-jx2,jy2 = sp.symbols(r"j_{c\,x}^{(2)} j_{c\,y}^{(2)}")
-Bx2,By2 = sp.symbols(r"B_x^{(2)} B_y^{(2)}")
-Ex2,Ey2 = sp.symbols(r"E_x^{(2)} E_y^{(2)}")
-f2 = sp.symbols(r"\hat{f}^{(2)}")
-U2 = sp.Matrix([jx2,jy2,Bx2,By2,Ex2,Ey2,f2])
-
-jx3,jy3 = sp.symbols(r"j_{c\,x}^{(3)} j_{c\,y}^{(3)}")
-Bx3,By3 = sp.symbols(r"B_x^{(3)} B_y^{(3)}")
-Ex3,Ey3 = sp.symbols(r"E_x^{(3)} E_y^{(3)}")
-f3 = sp.symbols(r"\hat{f}^{(3)}")
-U3 = sp.Matrix([jx3,jy3,Bx3,By3,Ex3,Ey3,f3])
-
-print("> scheme generation")
-
-# LRK(4,4)
-print("+ stage 1")
-stage_U1  =  ms_exp(dt/2*sm_L)*Un + dt/2*ms_exp(dt/2*sm_L)*N(Un)
-print("+ stage 2")
-stage_U2  =  ms_exp(dt/2*sm_L)*Un + dt/2*N(U1)
-print("+ stage 3")
-stage_U3  =  ms_exp(dt*sm_L)*Un   + dt*ms_exp(dt/2*sm_L)*N(U2)
-print("+ stage n+1")
-stage_Un1 = -ms_exp(dt*sm_L)*Un/3 + ms_exp(dt/2*sm_L)*U1/3 + 2*ms_exp(dt/2*sm_L)*U2/3 + U3/3 + dt/6*N(U3)
-
-dts = [ 0. , 0.5 , 0.5 , 1.0 ]
-
-r"""
-we compute Pade approximant of $tL$
-"""
-
-print("> compute Pade approximant ({})".format(order_pade))
-t = sp.symbols("t",real=True,positive=True)
-Pt = pade(order_pade,order_pade)(t*L)
-
-def Pt_func(X):
-  dt = X[1,0]/L[1,0] # normalement le terme L[1,0] est non nul, il faut juste un terme non nul pour retrouver dt
-  return Pt.subs(t,dt)
-
-r"""
-replace $e{\alpha_i\Delta t L}$ by Padé approximant with smart
-substituion
-"""
-
-print("> substitute in scheme")
-
-print("+ stage 1")
-pade_stage_U1 = stage_U1.replace(
-    sp.MatrixSymbol,
-    ems_func(ems_subs(sm_L,L),Pt_func)
-  ).replace(sp.MatMul,sp.Mul).replace(sp.MatAdd,sp.Add)
-
-print("+ stage 2")
-pade_stage_U2 = stage_U2.replace(
-    sp.MatrixSymbol,
-    ems_func(ems_subs(sm_L,L),Pt_func)
-  ).replace(sp.MatMul,sp.Mul).replace(sp.MatAdd,sp.Add)
-
-print("+ stage 3")
-pade_stage_U3 = stage_U3.replace(
-    sp.MatrixSymbol,
-    ems_func(ems_subs(sm_L,L),Pt_func)
-  ).replace(sp.MatMul,sp.Mul).replace(sp.MatAdd,sp.Add)
-
-print("+ stage n+1")
-pade_stage_Un1 = stage_Un1.replace(
-    sp.MatrixSymbol,
-    ems_func(ems_subs(sm_L,L),Pt_func)
-  ).replace(sp.MatMul,sp.Mul).replace(sp.MatAdd,sp.Add)
-
-######################################################################
-# We convert scheme into code ########################################
-######################################################################
-
+### function to convert scheme into code
 @dataclasses.dataclass
 class U_code:
   jcx:str = "hjcx"
@@ -346,6 +190,9 @@ class U_code:
   dt:float = 0.
 
   def keys():
+    """
+      returns name of attributs of the class not the contain of each string
+    """
     return ('jcx','jcy','Bx','By','Ex','Ey','fh')
 
   def __getitem__(self, key):
@@ -364,26 +211,17 @@ class U_code:
     else:
       setattr(self,U_code.keys()[key] , values)
 
-@dataclasses.dataclass
-class f_range:
-  vx_max =  3.6
-  vx_min = -3.6
-  vy_max =  3.6
-  vy_min = -3.6
-  vz_max =  2.0
-  vz_min = -2.0
+def expr_to_code (expr,symbols_replace,function_replace,display=None):
+  if display is not None:
+    print("+ expression to code {}".format(display),end="\r")
 
-def expr_to_code (expr,symbols_replace,function_replace):
   # sympy function to replace into STL C++ functions
   math_to_stl = [(f,sp.Function("std::"+str(f),nargs=1)) for f in (sp.sin,sp.cos,sp.exp)]
   math_to_stl.append( (sp.sqrt,sp.Function("std::sqrt",nargs=1)) )
-
-  # first step: replace symbols
-  #try:
-  #  tmp = sp.simplify(expr.subs(symbols_replace))
-  #except:
-  tmp = expr.subs(symbols_replace)
   
+  # first step: replace symbols
+  tmp = expr.subs(symbols_replace)
+
   # second step: use STL functions
   for old,new in math_to_stl:
     tmp = tmp.subs(old,new)
@@ -399,49 +237,56 @@ def expr_to_code (expr,symbols_replace,function_replace):
   # and return a string
   return str(tmp)
 
-dt_sym_to_str = [
-  (dt,"dt")
-]
-space_sym_to_str = [
-  (k,"{}[i]".format(v))
-  for (k,v) in [
-    (k,"Kz") ,
-    (jxn, "hjcx") , (jyn, "hjcy") ,
-    (Bxn,  "hBx") , (Byn,  "hBy") ,
-    (Exn,  "hEx") , (Eyn,  "hEy") ,
-    (jx1,"hjcx1") , (jy1,"hjcy1") ,
-    (Bx1, "hBx1") , (By1, "hBy1") ,
-    (Ex1, "hEx1") , (Ey1, "hEy1") ,
-    (jx2,"hjcx2") , (jy2,"hjcy2") ,
-    (Bx2, "hBx2") , (By2, "hBy2") ,
-    (Ex2, "hEx2") , (Ey2, "hEy2") ,
-    (jx3,"hjcx3") , (jy3,"hjcy3") ,
-    (Bx3, "hBx3") , (By3, "hBy3") ,
-    (Ex3, "hEx3") , (Ey3, "hEy3") ,
-  ]
-]
-phase_sym_to_str = [
-  (k,"{}[k_x][k_y][k_z][i]".format(v))
-  for (k,v) in [
-    ( fn,   "hf") ,
-    ( f1,  "hf1") ,
-    ( f2,  "hf2") ,
-    ( f3,  "hf3") ,
-  ]
-]
+def reduce_code(line):
+  """
+    a last patch to solve some issues
+    replace every trivial power
+    and remove last Python sqaure (`expr**2`)
+  """
+  import re
 
-sym_to_code = [
-  (k,sp.symbols(v))
-  for (k,v) in [*dt_sym_to_str,*space_sym_to_str,*phase_sym_to_str]
-]
+  # first remove all trivial power
+  line = (line
+    .replace("std::pow(1.0*t, 2)","t*t")
+    .replace("std::pow(1.0*t, 3)","t*t*t")
+    .replace("std::pow(1.0*t, 4)","*".join(["t"]*4))
+    .replace("std::pow(1.0*t, 5)","*".join(["t"]*5))
+    .replace("std::pow(1.0*t, 6)","*".join(["t"]*6))
+    .replace("std::pow(1.0*k, 2)","k*k")
+    .replace("std::pow(1.0*k, 3)","k*k*k")
+    .replace("std::pow(1.0*k, 4)","*".join(["k"]*4))
+    .replace("std::pow(1.0*k, 5)","*".join(["k"]*5))
+    .replace("std::pow(1.0*k, 6)","*".join(["k"]*6))
+    .replace("1.0*","")
+    )
+
+  # search all expression between brackets (without close bracket) and finish with `**2`
+  # in short, search all Python square expression
+  p = re.compile(r"\(([^)(]+)\)\*\*2")
+  d = { m.group(0):"({expr}*{expr})".format(expr=m.group(0)[:-3]) for m in p.finditer(line) }
+  for old,new in d.items() :
+    line = line.replace(old,new)
+
+  return line
+
+def code_gen ( simu_name , schemes , frange , expLt_mat ) :
+  import jinja2
+
+  env = jinja2.Environment(loader=jinja2.FileSystemLoader("."))
+  template = env.get_template("hybrid_stalfos.jinja.cc")
+
+  with open("hybrid_{}.cc".format(simu_name),'w') as of:
+    of.write(template.render(simu_name=simu_name,schemes=schemes,frange=frange,expLt_mat=expLt_mat))
 
 def code_pow(x,e):
   """
     replace some trivial cases by a simpler expression (for code)
+    because all division in sympy are `sp.Pow(expr,-1)` and same
+    for every square, of square root
   """
   if e == 1 :
     return x
-  if e < 0 :
+  if sp.S(e).is_number and e < 0 :
     return 1./(code_pow(x,-e))
   if e == sp.S.Half :
     return sp.Function("std::sqrt",nargs=1)(x)
@@ -454,29 +299,125 @@ fun_to_code = [
   (sp.Pow,code_pow),
 ]
 
-print("> code generation")
-list_stages = []
-for stage,nextU,adt in zip([pade_stage_U1,pade_stage_U2,pade_stage_U3,pade_stage_Un1],[U1,U2,U3,Un],dts) :
-  code_nextU = nextU.subs(sym_to_code)
+### main ############################################################
 
-  lhs,rhs = (U_code(),U_code())
+# import lib to manage arguments
+import sys, docopt
 
-  lhs[:-1] = [ str(ui)[:-3] for ui in code_nextU[:-1] ]
-  lhs[-1]  = str(code_nextU[-1])[:-18]
-  lhs.dt   = adt
-  rhs[:] = [ expr_to_code(line,sym_to_code,fun_to_code) for line in stage ]
+if __name__ == '__main__':
+  # use docopt to parse argv
+  arg = docopt.docopt( __doc__.format(exe=sys.argv[0][2:]) )
+  # select exponential computationner
+  if arg['--exp'] :
+    exp_meth_name = "".format(**arg)
+    exp_meth = lambda M:sp.exp(M).evalf()
+  elif arg['--taylor']:
+    exp_meth_name = "t{--taylor}".format(**arg)
+    exp_meth = taylor(int(arg['--taylor']))
+  elif arg['--pade']:
+    if arg['M'] is None:
+      arg['M'] = arg['--pade']
+    exp_meth_name = "p{--pade}{M}".format(**arg)
+    exp_meth = pade(int(arg['--pade']),int(arg['M']))
 
-  list_stages.append( (lhs,rhs) )
+  # build simu_name (just missing RK parameters)
+  simu_name_pattern = "vmhllf_{m}{exp_meth}rk{{s}}{{n}}".format(m="m" if arg['--maxwell'] else "",exp_meth=exp_meth_name)
 
-print("> code printing")
-frange = f_range()
-env = jinja2.Environment(loader=jinja2.FileSystemLoader("."))
-template = env.get_template("hybrid_stalfos.jinja.cc")
+  # select linear part L and nonlinear part N from --maxwell argument
+  if arg['--maxwell']:
+    L = sp.Matrix([
+        [ 0 , -1 , 0      ,  0      ,  wpe**2 , 0      ,  0         ],
+        [ 1 ,  0 , 0      ,  0      ,  0      , wpe**2 ,  0         ],
+        [ 0 ,  0 , 0      ,  0      ,  0      , sp.I*k ,  0         ],
+        [ 0 ,  0 , 0      ,  0      , -sp.I*k , 0      ,  0         ],
+        [-1 ,  0 , 0      , -sp.I*k ,  0      , 0      ,  0         ],
+        [ 0 , -1 , sp.I*k ,  0      ,  0      , 0      ,  0         ],
+        [ 0 ,  0 , 0      ,  0      ,  0      , 0      , -sp.I*k*vz ]
+      ])
+    def N(U):
+      jcx,jcy,Bx,By,Ex,Ey,f = (*U,)
+      return sp.Matrix([
+        0,
+        0,
+        0,
+        0,
+        Ix(f),
+        Iy(f),
+        df(f)
+      ])
+  else:
+    L = sp.Matrix([
+        [ 0 , -1 , 0 , 0 , wpe**2 , 0      ,  0         ],
+        [ 1 ,  0 , 0 , 0 , 0      , wpe**2 ,  0         ],
+        [ 0 ,  0 , 0 , 0 , 0      , 0      ,  0         ],
+        [ 0 ,  0 , 0 , 0 , 0      , 0      ,  0         ],
+        [-1 ,  0 , 0 , 0 , 0      , 0      ,  0         ],
+        [ 0 , -1 , 0 , 0 , 0      , 0      ,  0         ],
+        [ 0 ,  0 , 0 , 0 , 0      , 0      , -sp.I*k*vz ]
+      ])
+    def N(U):
+      jcx,jcy,Bx,By,Ex,Ey,f = (*U,)
+      return sp.Matrix([
+        0,
+        0,
+        sp.I*k*Ey,
+        -sp.I*k*Ex,
+        -sp.I*k*By+Ix(f),
+        sp.I*k*Bx+Iy(f),
+        df(f)
+      ])
 
-simu_name = "vmhllf_p{}rk{}{}".format(order_pade,len(list_stages),len(list_stages))
+  print("> scheme generation")
+  # vector of variables for each stage in scheme
+  Un_idx, U1_idx, U2_idx, U3_idx = vectors_stages_idx( ["","1","2","3"] )
+  Un    , U1    , U2    , U3     = vectors_stages( ["","1","2","3"] )
 
-with open("hybrid_{}.cc".format(simu_name),'w') as of:
-  of.write(template.render(simu_name=simu_name,schemes=list_stages,frange=frange))
+  eLt = my_exp(L,t,k)
+  ### LRK(4,4) ######################################################
+  order_rk = 4
+  print("+ stage 1")
+  stage_U1  =  eLt.subs(t,dt/2)*Un_idx + dt/2*eLt.subs(t,dt/2)*N(Un_idx)
+  print("+ stage 2")
+  stage_U2  =  eLt.subs(t,dt/2)*Un_idx + dt/2*N(U1_idx)
+  print("+ stage 3")
+  stage_U3  =  eLt.subs(t,dt)*Un_idx   + dt*eLt.subs(t,dt/2)*N(U2_idx)
+  print("+ stage n+1")
+  stage_Un1 = -eLt.subs(t,dt)*Un_idx/3 + eLt.subs(t,dt/2)*U1_idx/3 + 2*eLt.subs(t,dt/2)*U2_idx/3 + U3_idx/3 + dt/6*N(U3_idx)
 
+  stages = [stage_U1,stage_U2,stage_U3,stage_Un1]
+  computed_stage = [U1,U2,U3,Un]
+  stages_dt = [ 0. , 0.5 , 0.5 , 1.0 ]
+  ###################################################################
 
+  print("> compute exponential approximant")
+  expLt_mat = exp_meth(t*L)
 
+  print("> code generation")
+  # appeler une fonction qui prend les étage et renvoie `list_stages`
+  list_stages = []
+  for i,(stage,nextU,stage_dt) in enumerate(zip(stages,computed_stage,stages_dt)):
+    print("+ stage ",i)
+    lhs,rhs = (U_code(),U_code())
+
+    lhs[:] = [ str(ui) for ui in nextU ]
+    lhs.dt = stage_dt
+
+    rhs[:] = [ expr_to_code(line,{k:sp.symbols("Kz[i]")},fun_to_code) for line in stage ]
+
+    list_stages.append( (lhs,rhs) )
+
+  print("> matrix code generation")
+  expLt_cmat = [
+    [
+      reduce_code( expr_to_code(expLt_mat[i,j],{},fun_to_code,"matrix [{},{}]".format(i,j)) )
+      for j in range(expLt_mat.shape[1]-1)
+    ]
+    for i in range(expLt_mat.shape[0]-1)
+  ]
+  print()
+
+  print("> code printing")
+  simu_name = simu_name_pattern.format(s=len(list_stages),n=order_rk)
+  print(simu_name)
+  code_gen( simu_name , list_stages , f_range() , expLt_cmat )
+  print("Finish!")
