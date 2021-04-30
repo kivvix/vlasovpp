@@ -3,14 +3,15 @@
 """{exe}
 
 Usage:
-  ./{exe} (--pade N [M] | --taylor N | --exp ) [--maxwell]
+  ./{exe} (--pade N [M] | --taylor N | --exp ) [--maxwell] [--output-dir=<folder>]
 
 Options:
-  -h, --help              Help! I need somebody
-  -p N [M], --pade N [M]  Write code of Lawson method with Pade approximant of order [N,M] (by default M=N)
-  -t N, --taylor N        Write code of Lawson method with Taylor serie to order N
-  -e, --exp               Write code of Lawson method with a classical exponential (this is incompatible with --maxwell option)
-  -m, --maxwell           If define, the matrix of the linear part contain Maxwell equations
+  -h, --help                         Help! I need somebody
+  -p N [M], --pade N [M]             Write code of Lawson method with Pade approximant of order [N,M] (by default M=N)
+  -t N, --taylor N                   Write code of Lawson method with Taylor serie to order N
+  -e, --exp                          Write code of Lawson method with a classical exponential (this is incompatible with --maxwell option)
+  -m, --maxwell                      If define, the matrix of the linear part contain Maxwell equations
+  -o=<folder>,--output-dir=<folder>  Define output directory for output simulation source code (current directory by default)
 """
 
 import dataclasses
@@ -18,7 +19,7 @@ import dataclasses
 import sympy as sp
 import numpy as np
 
-# TODO: trouver un moyen de passer ça argument si on veut d'autres valeurs
+# TODO (pas urgent du tout): trouver un moyen de passer ça argument si on veut d'autres valeurs
 @dataclasses.dataclass
 class f_range:
   vx_max =  3.6
@@ -269,13 +270,13 @@ def reduce_code(line):
 
   return line
 
-def code_gen ( simu_name , schemes , frange , expLt_mat ) :
+def code_gen ( filename , simu_name , schemes , frange , expLt_mat ) :
   import jinja2
 
   env = jinja2.Environment(loader=jinja2.FileSystemLoader("."))
   template = env.get_template("hybrid_stalfos.jinja.cc")
 
-  with open("hybrid_{}.cc".format(simu_name),'w') as of:
+  with open(filename,'w') as of:
     of.write(template.render(simu_name=simu_name,schemes=schemes,frange=frange,expLt_mat=expLt_mat))
 
 def code_pow(x,e):
@@ -302,7 +303,7 @@ fun_to_code = [
 ### main ############################################################
 
 # import lib to manage arguments
-import sys, docopt
+import sys, os, docopt
 
 if __name__ == '__main__':
   # use docopt to parse argv
@@ -319,6 +320,9 @@ if __name__ == '__main__':
       arg['M'] = arg['--pade']
     exp_meth_name = "p{--pade}{M}".format(**arg)
     exp_meth = pade(int(arg['--pade']),int(arg['M']))
+
+  if arg['--output-dir'] is None:
+    arg['--output-dir'] = "."
 
   # build simu_name (just missing RK parameters)
   simu_name_pattern = "vmhllf_{m}{exp_meth}rk{{s}}{{n}}".format(m="m" if arg['--maxwell'] else "",exp_meth=exp_meth_name)
@@ -418,6 +422,7 @@ if __name__ == '__main__':
 
   print("> code printing")
   simu_name = simu_name_pattern.format(s=len(list_stages),n=order_rk)
+  filename = os.path.join(arg['--output-dir'],"hybrid_{simu_name}.cc".format(simu_name=simu_name))
   print(simu_name)
-  code_gen( simu_name , list_stages , f_range() , expLt_cmat )
+  code_gen( filename , simu_name , list_stages , f_range() , expLt_cmat )
   print("Finish!")
