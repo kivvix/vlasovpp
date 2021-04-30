@@ -213,6 +213,8 @@ class U_code:
       setattr(self,U_code.keys()[key] , values)
 
 def expr_to_code (expr,symbols_replace,function_replace,display=None):
+  import re
+
   if display is not None:
     print("+ expression to code {}".format(display),end="\r")
 
@@ -235,8 +237,8 @@ def expr_to_code (expr,symbols_replace,function_replace,display=None):
   a = sp.Wild('a')  
   tmp = tmp.replace(a/2,0.5*a,exact=True).evalf()
   
-  # and return a string
-  return str(tmp)
+  # and return a string (where remove every `1.0*` pattern where there is not a number before)
+  return re.sub(r"([^0-9])1\.0\*",r"\1",str(tmp))
 
 def reduce_code(line):
   """
@@ -258,7 +260,6 @@ def reduce_code(line):
     .replace("std::pow(1.0*k, 4)","*".join(["k"]*4))
     .replace("std::pow(1.0*k, 5)","*".join(["k"]*5))
     .replace("std::pow(1.0*k, 6)","*".join(["k"]*6))
-    .replace("1.0*","")
     )
 
   # search all expression between brackets (without close bracket) and finish with `**2`
@@ -311,7 +312,7 @@ if __name__ == '__main__':
   # select exponential computationner
   if arg['--exp'] :
     exp_meth_name = "".format(**arg)
-    exp_meth = lambda M:sp.exp(M).evalf()
+    exp_meth = lambda M:sp.exp(M).simplify()
   elif arg['--taylor']:
     exp_meth_name = "t{--taylor}".format(**arg)
     exp_meth = taylor(int(arg['--taylor']))
