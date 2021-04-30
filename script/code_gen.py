@@ -250,16 +250,16 @@ def reduce_code(line):
 
   # first remove all trivial power
   line = (line
-    .replace("std::pow(1.0*t, 2)","t*t")
-    .replace("std::pow(1.0*t, 3)","t*t*t")
-    .replace("std::pow(1.0*t, 4)","*".join(["t"]*4))
-    .replace("std::pow(1.0*t, 5)","*".join(["t"]*5))
-    .replace("std::pow(1.0*t, 6)","*".join(["t"]*6))
-    .replace("std::pow(1.0*k, 2)","k*k")
-    .replace("std::pow(1.0*k, 3)","k*k*k")
-    .replace("std::pow(1.0*k, 4)","*".join(["k"]*4))
-    .replace("std::pow(1.0*k, 5)","*".join(["k"]*5))
-    .replace("std::pow(1.0*k, 6)","*".join(["k"]*6))
+    .replace("std::pow(t, 2)","t*t")
+    .replace("std::pow(t, 3)","t*t*t")
+    .replace("std::pow(t, 4)","*".join(["t"]*4))
+    .replace("std::pow(t, 5)","*".join(["t"]*5))
+    .replace("std::pow(t, 6)","*".join(["t"]*6))
+    .replace("std::pow(k, 2)","k*k")
+    .replace("std::pow(k, 3)","k*k*k")
+    .replace("std::pow(k, 4)","*".join(["k"]*4))
+    .replace("std::pow(k, 5)","*".join(["k"]*5))
+    .replace("std::pow(k, 6)","*".join(["k"]*6))
     )
 
   # search all expression between brackets (without close bracket) and finish with `**2`
