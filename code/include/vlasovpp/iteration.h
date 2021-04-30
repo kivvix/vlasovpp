@@ -142,9 +142,9 @@ using namespace boost::numeric;
 template < typename _T >
 struct iteration
 {
-  std::size_t iter;
-  _T dt;
-  _T current_time;
+  std::size_t iter=0;
+  _T dt=0.1;
+  _T current_time=0.;
   _T Ljcx=0., Ljcy=0., LBx=0., LBy=0., LEx=0., LEy=0., Lfh=0.;
   bool success;
 
