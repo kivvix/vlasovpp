@@ -184,6 +184,7 @@ using namespace std::string_literals;
 
 void
 save_config ( const config & c ) {
+  c.create_output_directory();
   std::ofstream of( c.output_dir / ("config_"s + c.name + ".init"s) );
   of << c << "\n";
   of.close();
