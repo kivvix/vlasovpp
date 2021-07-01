@@ -3,7 +3,7 @@
 """{exe}
 
 Usage:
-  ./{exe} (--pade N [M] | --taylor N | --exp ) [--maxwell] [--output-dir=<folder>] [--lrk=<method>]
+  ./{exe} (--pade N [M] | --taylor N | --exp ) [--maxwell] [--lrk=<method>] [--output-dir=<folder>]
 
 Options:
   -h, --help                         Help! I need somebody
@@ -11,8 +11,8 @@ Options:
   -t N, --taylor N                   Write code of Lawson method with Taylor serie to order N
   -e, --exp                          Write code of Lawson method with a classical exponential (this is incompatible with --maxwell option)
   -m, --maxwell                      If define, the matrix of the linear part contain Maxwell equations
-  -o=<folder>,--output-dir=<folder>  Define output directory for output simulation source code (current directory by default)
   --lrk=<method>                     Select a Lawson-Runge-Kutta method in {meths}, by default it is RK44
+  -o=<folder>,--output-dir=<folder>  Define output directory for output simulation source code (current directory by default)
 """
 
 import sympy as sp

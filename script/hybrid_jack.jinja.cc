@@ -200,7 +200,11 @@ main ( int argc , char const * argv[] )
   ublas::vector<std::complex<double>> {{ un.Ey  }}(c.Nz,0.);
   {% endif %}
 
+  {% if is_embeded %}
   complex_field<double,3> {%- for (lhs,_) in schemes %} {{ lhs.fh }}(boost::extents[c.Nvx][c.Nvy][c.Nvz][c.Nz]) {{ ", " if not loop.last else "" }}{% endfor %};
+  {% else %}
+  complex_field<double,3> {%- for (lhs,_) in schemes[:-1] %} {{ lhs.fh }}(boost::extents[c.Nvx][c.Nvy][c.Nvz][c.Nz]) {{ ", " if not loop.last else "" }}{% endfor %};
+  {% endif %}
 
   field3d<double> dvf(boost::extents[c.Nvx][c.Nvy][c.Nvz][c.Nz]);
 
