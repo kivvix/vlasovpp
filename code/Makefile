@@ -3,7 +3,7 @@ PROJET = vlasovpp
 
 include Makefile.config
 
-DEBUG_MODE ?= Y
+DEBUG_MODE ?= N
 PARALLEL_MODE ?= N
 JC_condition  ?= 1
 Bxy_condition ?= 1
