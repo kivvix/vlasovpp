@@ -232,6 +232,16 @@ main ( int argc , char const * argv[] )
     ( w_1*s_ + w_2*c_ )*{{ hf }}[k_x][k_y][k_z][i]*f.volumeV()
   {%- endmacro %}
 
+  {% macro velocity_vx(Bx,By,Ex,Ey) -%}
+      -{{ Ex }}[i]*c_ + {{ Ey }}[i]*s_ + v_z*{{ Bx }}[i]*s_ - v_z*{{ By }}[i]*c_;
+  {%- endmacro %}
+  {% macro velocity_vx(Bx,By,Ex,Ey) -%}
+    -(-{{ Ex }}[i]*s_ + {{ Ey }}[i]*c_ + v_z*{{ Bx }}[i]*c_ + v_z*{{ By }}[i]*s_);
+  {%- endmacro %}
+  {% macro velocity_vx(Bx,By,Ex,Ey) -%}
+    -(-{{ Bx }}[i]*( w_1*s_ + w_2*c_ ) + {{ By }}[i]*( w_1*c_ - w_2*s_ ));
+  {%- endmacro %}
+
   iteration_4d::iteration<double> iter;
   iter.dt = c.dt0;
   times.push_back(iter.current_time);
@@ -337,9 +347,9 @@ main ( int argc , char const * argv[] )
               const double w_2 = static_cast<double>(k_y)*f.step.dvy + f.range.vy_min;
               const double v_z = static_cast<double>(k_z)*f.step.dvz + f.range.vz_min;
 
-              const double velocity_vx =   -Ex[i]*c_ + Ey[i]*s_ + v_z*Bx[i]*s_ - v_z*By[i]*c_;
-              const double velocity_vy = -(-Ex[i]*s_ + Ey[i]*c_ + v_z*Bx[i]*c_ + v_z*By[i]*s_);
-              const double velocity_vz = -(-Bx[i]*( w_1*s_ + w_2*c_ ) + By[i]*( w_1*c_ - w_2*s_ ));
+              const double velocity_vx = {{ velocity_vx(schemes[loop.index0-1][0].Bx,schemes[loop.index0-1][0].By,schemes[loop.index0-1][0].Ex,schemes[loop.index0-1][0].Ey) }};
+              const double velocity_vy = {{ velocity_vy(schemes[loop.index0-1][0].Bx,schemes[loop.index0-1][0].By,schemes[loop.index0-1][0].Ex,schemes[loop.index0-1][0].Ey) }};
+              const double velocity_vz = {{ velocity_vz(schemes[loop.index0-1][0].Bx,schemes[loop.index0-1][0].By,schemes[loop.index0-1][0].Ex,schemes[loop.index0-1][0].Ey) }};
 
               dvf[k_x][k_y][k_z][i] = + weno3d::d_vx(velocity_vx,f,k_x,k_y,k_z,i)
                                       + weno3d::d_vy(velocity_vy,f,k_x,k_y,k_z,i)
