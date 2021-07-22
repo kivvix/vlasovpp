@@ -67,6 +67,8 @@ struct spectrum
 struct spectrum_
   : public tools::array_view< std::complex<double> >
 {
+  static bool initied;
+
   spectrum_ ( std::size_t n )
     : tools::array_view<std::complex<double>>( new std::complex<double>[n] , n )
   {}
