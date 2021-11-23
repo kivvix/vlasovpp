@@ -32,6 +32,17 @@ class lawson:
       self.un = cg.Uhs()
       self.un[:] = [ str(ui) for ui in un ]
 
+def LRK11 ( t , dt , eLt , N ):
+  Un, = [ cg.vector_stage_idx(sname) for sname in "".split(',') ]
+  print("+ stage 1")
+  stage_Un1 = eLt.subs(t,dt)*Un + dt/2*eLt.subs(t,dt)*N(Un)
+
+  expr_stages = [stage_Un1]
+  computed_stages = [ cg.vector_stage(sname) for sname in "".split(",") ]
+  dt_stages = [ 0. ]
+
+  return lawson( computed_stages , expr_stages , dt_stages , is_embeded=False )
+
 def LRK44 ( t , dt , eLt , N ):
   Un , U1 , U2 , U3 = [ cg.vector_stage_idx(sname) for sname in ",1,2,3".split(',') ]
   print("+ stage 1")
@@ -84,5 +95,5 @@ def LRK33 ( t , dt , eLt , N ):
   return lawson( computed_stages , expr_stages , dt_stages , is_embeded=False )
 
 
-methods = { "RK44":LRK44, "DP43":LDP43 , "RK33":LRK33, }
+methods = { "RK44":LRK44, "DP43":LDP43 , "RK33":LRK33, "Euler":LRK11 }
 

@@ -201,6 +201,18 @@ def expr_to_code (expr,symbols_replace,function_replace,display=None):
   # and return a string (where remove every `1.0*` pattern where there is not a number before)
   return re.sub(r"([^0-9])1\.0\*",r"\1",str(tmp))
 
+
+def idx_matching_parenthesis(s,idx):
+  counter = 0
+  for i,c in enumerate(reversed(s[:idx])):
+    if c == ")":
+      counter += 1
+    elif c == "(":
+      counter -= 1
+    if counter == 0:
+      break
+  return idx-i-1
+
 def reduce_code(line):
   """
     a last patch to solve some issues
@@ -225,8 +237,26 @@ def reduce_code(line):
 
   # search all expression between brackets (without close bracket) and finish with `**2`
   # in short, search all Python square expression
-  p = re.compile(r"\(([^)(]+)\)\*\*2")
-  d = { m.group(0):"({expr}*{expr})".format(expr=m.group(0)[:-3]) for m in p.finditer(line) }
+
+  #p = re.compile(r"\(([^)(]+)\)\*\*2")
+  #d = { m.group(0):"({expr}*{expr})".format(expr=m.group(0)[:-3]) for m in p.finditer(line) }
+  #for old,new in d.items() :
+  #  line = line.replace(old,new)
+
+  # find all patern of the form `**` (exponent in Python)
+  # and find matching parenthesis before
+  # becareful of form like `sin(x)**2 which will be replace by `sin(x)*(x)`
+  d = {}
+  p = re.compile(r"\*\*")
+  for m in p.finditer(line):
+    idx = m.start()
+    jdx = idx_matching_parenthesis(line[:idx],idx)
+
+    n = int(line[idx+2]) # ATTENTION !!!! cette ligne suppose qu'il n'y a pas d'exposant suppérieur à 9
+
+    d[line[jdx:idx+3]] = "*".join([line[jdx:idx]]*n)
+
+  # replace all finding paterns
   for old,new in d.items() :
     line = line.replace(old,new)
 

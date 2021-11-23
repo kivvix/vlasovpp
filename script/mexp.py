@@ -17,6 +17,16 @@ with $A$ a submatrix, and $x$ a scalar. That why `taylor` and `pade`
 functions begin by `_N = M[:-1,:-1]` to extract the submatrix $A$.
 """
 
+# Exact exponential
+def expm(A):
+  r"""
+    here we use the special form of matrix M to compute its exponential
+  """
+  eA = sp.exp(A[:-1,:-1]).evalf().simplify().row_join(sp.zeros(6,1)).col_join(sp.Matrix(1,7,[0]*6+[sp.exp(A[-1,-1])]))
+  return eA.simplify()
+
+# Polynomial or rational approximations
+
 ## Taylor series
 def taylor(n,):
   r"""
@@ -114,3 +124,67 @@ def pade(n,m):
       ]))
 
   return r_lambda
+
+# Splitting approximation
+def strang(M):
+  r"""
+    A Strang method to approximate exponential:
+    $$
+      exp(t(A_1+A_2)) \approx exp(t/2 A_1)exp(tA_2)exp(t/2 A_1)
+    $$
+  """
+  k  = sp.symbols("k",real=True)
+
+  A = M[:-1,:-1]
+  nb_rows,nb_cols = A.shape
+  A1 = A.subs(k,0)
+  A2 = A-A1
+
+  tau = A[1,0] # because B_0 = 1
+  eA1 = sp.exp(A1).evalf().simplify()
+  eA2 = sp.exp(A2)
+
+  Strang = eA2.subs(tau,0.5*tau)*eA1*eA2.subs(tau,0.5*tau)
+
+  return sp.Matrix(sp.BlockMatrix([
+        [ Strang              , sp.zeros(nb_rows,1)           ],
+        [ sp.zeros(1,nb_cols) , sp.Matrix([sp.exp(M[-1,-1])]) ]
+      ]))
+
+def suzuki(M):
+  r"""
+    A Suzuki method to approximate exponential:
+    $$
+      exp(t(A_1+A_2)) \approx \dots
+    $$
+  """
+  k  = sp.symbols("k",real=True)
+
+  A = M[:-1,:-1]
+  nb_rows,nb_cols = A.shape
+  A1 = A.subs(k,0)
+  A2 = A-A1
+
+  tau = A[1,0] # because B_0 = 1
+  eA1 = sp.exp(A1).evalf().simplify()
+  eA2 = sp.exp(A2)
+
+  from numpy import cbrt
+  a1 = 1.0/(4.0 - cbrt(4.0))
+  a2 = a1
+  a3 = 1.0/(4.0 - cbrt(4.0)**2)
+
+  Strang = eA2.subs(tau,0.5*tau)*eA1*eA2.subs(tau,0.5*tau) # one Strang
+  St1 = Strang.subs(tau,a1*tau).evalf().simplify()
+  St2 = Strang.subs(tau,a2*tau).evalf().simplify()
+  St3 = Strang.subs(tau,a3*tau).evalf().simplify()
+
+  Suzuki = St1*St2*St3*St2*St1
+
+  return sp.Matrix(sp.BlockMatrix([
+        [ Suzuki.evalf()      , sp.zeros(nb_rows,1)           ],
+        [ sp.zeros(1,nb_cols) , sp.Matrix([sp.exp(M[-1,-1])]) ]
+      ]))
+
+
+#TODO: BCH formula

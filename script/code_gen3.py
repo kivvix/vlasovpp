@@ -3,12 +3,14 @@
 """{exe}
 
 Usage:
-  ./{exe} (--pade N [M] | --taylor N | --exp ) [--maxwell] [--lrk=<method>] [--output-dir=<folder>]
+  ./{exe} (--pade N [M] | --taylor N | --strang | --suzuki | --exp ) [--maxwell] [--lrk=<method>] [--output-dir=<folder>]
 
 Options:
   -h, --help                         Help! I need somebody
   -p N [M], --pade N [M]             Write code of Lawson method with Pade approximant of order [N,M] (by default M=N)
   -t N, --taylor N                   Write code of Lawson method with Taylor serie to order N
+  -s, --strang                       Write code of Lawson method with a Strang method to estimate the exponential of linear term
+  -S, --suzuki                       Write code of Lawson method with a Suzuki method to estimate the exponential of linear term
   -e, --exp                          Write code of Lawson method with a classical exponential (this is incompatible with --maxwell option)
   -m, --maxwell                      If define, the matrix of the linear part contain Maxwell equations
   --lrk=<method>                     Select a Lawson-Runge-Kutta method in {meths}, by default it is RK44
@@ -35,8 +37,8 @@ class f_range:
 ######################################################################
 
 k  = sp.symbols("k",real=True)
-t  = sp.symbols("t",real=True)
-dt = sp.symbols("dt",real=True)
+t  = sp.symbols("t",real=True,positive=True)
+dt = sp.symbols("dt",real=True,positive=True)
 wpe = 2
 vx,vy,vz = sp.symbols("v_x v_y v_z",real=True)
 
@@ -62,7 +64,7 @@ if __name__ == '__main__':
   # select exponential computationner
   if arg['--exp'] :
     exp_meth_name = "".format(**arg)
-    exp_meth = lambda M:sp.exp(M).simplify()
+    exp_meth = mexp.expm
   elif arg['--taylor']:
     exp_meth_name = "t{--taylor}".format(**arg)
     exp_meth = mexp.taylor(int(arg['--taylor']))
@@ -71,6 +73,12 @@ if __name__ == '__main__':
       arg['M'] = arg['--pade']
     exp_meth_name = "p{--pade}{M}".format(**arg)
     exp_meth = mexp.pade(int(arg['--pade']),int(arg['M']))
+  elif arg['--strang']:
+    exp_meth_name =  "s2".format(**arg)
+    exp_meth = mexp.strang
+  elif arg['--suzuki']:
+    exp_meth_name =  "s4".format(**arg)
+    exp_meth = mexp.suzuki
 
   if arg['--output-dir'] is None:
     arg['--output-dir'] = "."
@@ -147,7 +155,7 @@ if __name__ == '__main__':
   print("> matrix code generation")
   expLt_cmat = [
     [
-      cg.reduce_code( cg.expr_to_code(expLt_mat[i,j],{},fun_to_code,"matrix [{},{}]".format(i,j)) )
+      cg.reduce_code( cg.expr_to_code(expLt_mat[i,j],{},fun_to_code,display="matrix [{},{}]".format(i,j)) )
       for j in range(expLt_mat.shape[1]-1)
     ]
     for i in range(expLt_mat.shape[0]-1)
